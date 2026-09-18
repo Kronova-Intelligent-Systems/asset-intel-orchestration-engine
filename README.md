@@ -74,7 +74,7 @@ We are currently onboarding a select group of institutional partners for the Aet
 
 ---
 
-​⚠️ ## Security & Maintenance Notice
+​### Security & Maintenance Notice
 
 ​This repository is provided as a free, open-source orchestration sandbox. While I am obsessed with shipping perfectly secure, highly advanced code, my active development time is strictly focused on building the sovereign, post-quantum, architecture agnostic economic jurisdiction at Kronova/AetherNet. Because this specific frontend repository is neither paywalled nor commercially supported, it is not proactively audited for security regressions or edge cases.  
 
