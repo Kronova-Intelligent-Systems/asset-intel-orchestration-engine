@@ -1,6 +1,6 @@
 # Kronova Asset Intelligence and Orchestration Platform
 
-Welcome to the official open-source frontend  and intelligent orchestration layer for the Kronova Intelligent Systems ecosystem. Most of the codebase is functional, production worthy, and scalable with relatively minor tweaks. However, the platform and API is a work in progress and we encourage developers to take the reigns from here. 
+Welcome to the official open-source frontend  and intelligent orchestration layer for the Kronova Intelligent Systems ecosystem. Most of the codebase is functional, production worthy, and scalable with relatively minor tweaks. 
 
 Built with a NextJS 16 TypeScript Tailwind Shadcn-UI frontend, Supabase backend with Qdrant migration plan, Stripe ai_token metered subscriptions, any AI model with 30+ models pre-configured, embedding, RAG, and dataset management, Qdrant and Weaviate dataset imports, integrations including Salesforce, CrmOne, NetSuite, Shopify, Wix, Plaid, Resend, UPS, FedEx, Canton Network, Sui, and more. 
 
@@ -74,15 +74,13 @@ We are currently onboarding a select group of institutional partners for the Aet
 
 ---
 
-## Contributing
+​⚠️ Security & Maintenance Notice
 
-This platform is actively evolving, and we welcome community contributions! We are currently looking for help with:
+​This repository is provided as a free, open-source orchestration sandbox. While I am obsessed with shipping perfectly secure, highly advanced code, my active development time is strictly focused on building the sovereign, post-quantum, architecture agnostic economic jurisdiction at Kronova/AetherNet. Because this specific frontend repository is neither paywalled nor commercially supported, it is not proactively audited for security regressions or edge cases.  
 
-- Adding support for localized, open-weight LLMs.
-- Expanding the 44-field RWA schema for new asset classes.
-- Extending the OAuth 2.1 MCP server capabilities.
+- ​Community Contributions: If you spot a vulnerability, responsible disclosures are highly appreciated (and will be patched). Community PRs to maintain and expand this codebase are always welcome.
 
-Please see our [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines on submitting Pull Requests.
+- ​Enterprise Production: This repository provides the frontend orchestration and agent logic. However, if you require zero-trust, post-quantum secure transactions and true defense-in-depth, you must connect this platform to the proprietary AetherNet QUAS via an enterprise API key.  
 
 ---
 
