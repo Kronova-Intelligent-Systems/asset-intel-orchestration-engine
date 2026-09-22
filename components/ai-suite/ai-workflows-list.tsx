@@ -423,7 +423,7 @@ export function AIWorkflowsList({ workflows, user }: AIWorkflowsListProps) {
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
           <Card className="enterprise-card relative overflow-hidden group hover:shadow-2xl transition-all duration-500">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity duration-500 pointer-events-none" />
             <CardContent className="p-4 relative z-10">
               <div className="flex items-center justify-between">
                 <div>
@@ -437,7 +437,7 @@ export function AIWorkflowsList({ workflows, user }: AIWorkflowsListProps) {
             </CardContent>
           </Card>
           <Card className="enterprise-card relative overflow-hidden group hover:shadow-2xl transition-all duration-500">
-            <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 via-transparent to-emerald-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 via-transparent to-emerald-500/10 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity duration-500 pointer-events-none" />
             <CardContent className="p-4 relative z-10">
               <div className="flex items-center justify-between">
                 <div>
@@ -453,7 +453,7 @@ export function AIWorkflowsList({ workflows, user }: AIWorkflowsListProps) {
             </CardContent>
           </Card>
           <Card className="enterprise-card relative overflow-hidden group hover:shadow-2xl transition-all duration-500">
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-transparent to-cyan-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-transparent to-cyan-500/10 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity duration-500 pointer-events-none" />
             <CardContent className="p-4 relative z-10">
               <div className="flex items-center justify-between">
                 <div>
@@ -469,7 +469,7 @@ export function AIWorkflowsList({ workflows, user }: AIWorkflowsListProps) {
             </CardContent>
           </Card>
           <Card className="enterprise-card relative overflow-hidden group hover:shadow-2xl transition-all duration-500">
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-transparent to-violet-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-transparent to-violet-500/10 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity duration-500 pointer-events-none" />
             <CardContent className="p-4 relative z-10">
               <div className="flex items-center justify-between">
                 <div>
@@ -532,12 +532,12 @@ export function AIWorkflowsList({ workflows, user }: AIWorkflowsListProps) {
               {workflows.map((workflow) => (
                 <Card
                   key={workflow.id}
-                  className="enterprise-card group relative overflow-hidden hover:shadow-2xl transition-all duration-500 hover:scale-[1.01]"
+                  className="enterprise-card group relative overflow-hidden"
                 >
-                  <div className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
+                  <div className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity duration-500 pointer-events-none">
                     <div className="absolute inset-0 rounded-lg bg-gradient-to-br from-primary/20 via-transparent to-accent/20" />
                   </div>
-                  <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity duration-500 pointer-events-none" />
 
                   <CardHeader className="pb-3 relative z-10">
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">

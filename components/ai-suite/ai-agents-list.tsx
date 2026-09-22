@@ -495,14 +495,14 @@ export function AIAgentsList({ agents, user, aiModels, initialAssets = [] }: AIA
                   transition={{ duration: 0.2, delay: index * 0.05 }}
                 >
                   {/* Enhanced agent card styling */}
-                  <Card className="group relative overflow-hidden hover:shadow-2xl transition-all duration-500 hover:scale-[1.02] border border-border/50 bg-card/80 backdrop-blur-sm">
-                    {/* Holographic border effect */}
-                    <div className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
+                  <Card className="enterprise-card group relative overflow-hidden border border-border/50">
+                    {/* Holographic border effect — desktop hover + mobile long-press */}
+                    <div className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity duration-500 pointer-events-none">
                       <div className="absolute inset-0 rounded-lg bg-gradient-to-br from-primary/20 via-transparent to-accent/20" />
                     </div>
 
                     {/* Animated gradient overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity duration-500 pointer-events-none" />
 
                     <CardHeader className="pb-3 relative z-10">
                       <div className="flex items-start gap-3 mb-2">

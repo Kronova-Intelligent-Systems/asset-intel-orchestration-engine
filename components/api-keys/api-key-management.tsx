@@ -17,8 +17,9 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Copy, Trash2, Key, Activity, Shield, RotateCw, CheckCircle2 } from "lucide-react"
+import { Copy, Trash2, Key, Activity, Shield, RotateCw, CheckCircle2, Server } from "lucide-react"
 import { toast } from "sonner"
+import { useSearchParams } from "next/navigation"
 import {
   createAPIKey,
   getAPIKeys,
@@ -28,15 +29,26 @@ import {
   updateAPIKeyScopes,
   type APIKey,
 } from "@/app/actions/api-keys"
+import { listServiceAccounts, type ServiceAccount } from "@/app/actions/service-account-actions"
 import { AVAILABLE_SCOPES } from "@/lib/schemas"
 
+// Ownership of a key by a service account is stored as a `service_account:<id>`
+// scope tag. Helpers to read/strip that tag for display.
+const SA_SCOPE_PREFIX = "service_account:"
+const getServiceAccountId = (scopes?: string[]) =>
+  scopes?.find((s) => s.startsWith(SA_SCOPE_PREFIX))?.slice(SA_SCOPE_PREFIX.length) ?? null
+const visibleScopes = (scopes?: string[]) => (scopes || []).filter((s) => !s.startsWith(SA_SCOPE_PREFIX))
+
 export function APIKeyManagement() {
+  const searchParams = useSearchParams()
   const [apiKeys, setApiKeys] = useState<APIKey[]>([])
   const [loading, setLoading] = useState(true)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [newKeyName, setNewKeyName] = useState("")
   const [expiresIn, setExpiresIn] = useState<string>("never")
   const [selectedScopes, setSelectedScopes] = useState<string[]>(["execute:agents", "execute:workflows"])
+  const [serviceAccounts, setServiceAccounts] = useState<ServiceAccount[]>([])
+  const [selectedServiceAccount, setSelectedServiceAccount] = useState<string>("none")
   const [createdKey, setCreatedKey] = useState<string | null>(null)
   const [showCreatedKey, setShowCreatedKey] = useState(false)
   const [selectedKeyStats, setSelectedKeyStats] = useState<any>(null)
@@ -47,7 +59,25 @@ export function APIKeyManagement() {
 
   useEffect(() => {
     loadAPIKeys()
+    loadServiceAccounts()
   }, [])
+
+  // Deep link from the Service Accounts page: /ai-suite/settings?tab=api-keys&sa=<id>
+  // opens the create dialog with that service account preselected.
+  useEffect(() => {
+    const sa = searchParams.get("sa")
+    if (sa) {
+      setSelectedServiceAccount(sa)
+      setCreateDialogOpen(true)
+    }
+  }, [searchParams])
+
+  async function loadServiceAccounts() {
+    const result = await listServiceAccounts()
+    if (!result.error) {
+      setServiceAccounts(result.data || [])
+    }
+  }
 
   async function loadAPIKeys() {
     setLoading(true)
@@ -72,7 +102,8 @@ export function APIKeyManagement() {
     }
 
     const expiresInDays = expiresIn === "never" ? undefined : Number.parseInt(expiresIn)
-    const result = await createAPIKey(newKeyName, expiresInDays, selectedScopes)
+    const serviceAccountId = selectedServiceAccount === "none" ? undefined : selectedServiceAccount
+    const result = await createAPIKey(newKeyName, expiresInDays, selectedScopes, serviceAccountId)
 
     if (result.error) {
       toast.error(result.error)
@@ -82,6 +113,7 @@ export function APIKeyManagement() {
       setNewKeyName("")
       setExpiresIn("never")
       setSelectedScopes(["execute:agents", "execute:workflows"])
+      setSelectedServiceAccount("none")
       loadAPIKeys()
       toast.success("API key created successfully with selected scopes")
     }
@@ -229,6 +261,30 @@ export function APIKeyManagement() {
                       </Select>
                     </div>
 
+                    <div className="space-y-2">
+                      <Label htmlFor="service-account" className="flex items-center gap-2">
+                        <Server className="h-4 w-4" />
+                        Service Account <span className="text-muted-foreground font-normal">(optional)</span>
+                      </Label>
+                      <Select value={selectedServiceAccount} onValueChange={setSelectedServiceAccount}>
+                        <SelectTrigger id="service-account">
+                          <SelectValue placeholder="No service account (owned by you)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">No service account (owned by you)</SelectItem>
+                          {serviceAccounts.map((sa) => (
+                            <SelectItem key={sa.id} value={sa.id}>
+                              {sa.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-sm text-muted-foreground">
+                        Attach this key to a machine identity instead of your personal account. Manage accounts under{" "}
+                        <span className="font-medium">Service Accounts</span>.
+                      </p>
+                    </div>
+
                     <div className="space-y-3">
                       <div className="flex items-center gap-2">
                         <Shield className="h-4 w-4" />
@@ -369,6 +425,17 @@ export function APIKeyManagement() {
                       )}
                     </div>
                     <p className="text-sm text-muted-foreground font-mono">{key.key_prefix}...</p>
+                    {(() => {
+                      const saId = getServiceAccountId(key.scopes)
+                      if (!saId) return null
+                      const sa = serviceAccounts.find((s) => s.id === saId)
+                      return (
+                        <Badge variant="outline" className="mt-2 gap-1 border-primary/30 text-xs font-normal">
+                          <Server className="h-3 w-3 text-primary" />
+                          {sa ? sa.name : "Service account"}
+                        </Badge>
+                      )
+                    })()}
                     <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-muted-foreground">
                       <span>Created: {formatDate(key.created_at)}</span>
                       {key.expires_at && <span>Expires: {formatDate(key.expires_at)}</span>}
@@ -402,13 +469,13 @@ export function APIKeyManagement() {
                   </div>
                 </div>
 
-                {key.scopes && key.scopes.length > 0 && (
+                {visibleScopes(key.scopes).length > 0 && (
                   <div className="flex flex-wrap gap-2 pt-2 border-t">
                     <span className="text-sm text-muted-foreground flex items-center gap-1">
                       <Shield className="h-3 w-3" />
                       Scopes:
                     </span>
-                    {key.scopes.map((scope) => (
+                    {visibleScopes(key.scopes).map((scope) => (
                       <Badge key={scope} variant="outline" className="text-xs">
                         {scope}
                       </Badge>

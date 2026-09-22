@@ -38,7 +38,7 @@ export const siteConfig: SiteConfig = {
   ogImage: "https://app.kronova.io/images/landing/aether-ecosystem-hero.png",
   links: {
     twitter: "https://twitter.com/kronovaai",
-    github: "https://github.com/kronova/platform",
+    github: "https://github.com/kronova-intelligent-systems/asset-intel-orchestration-engine",
   },
   mainNav: [
     {

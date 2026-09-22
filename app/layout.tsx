@@ -1,7 +1,7 @@
 import type React from "react"
 import type { Metadata, Viewport } from "next"
 import "./globals.css"
-import { Eczar, Roboto_Condensed } from "next/font/google"
+import localFont from "next/font/local"
 import { ClientProviders } from "@/components/client-providers"
 import { ConditionalSiteHeader } from "@/components/conditional-site-header"
 import { ConditionalFooter } from "@/components/conditional-footer"
@@ -13,20 +13,34 @@ import { UnifiedFAB } from "@/components/support/unified-fab"
 
 export const dynamic = "force-dynamic"
 
-const eczar = Eczar({ subsets: ["latin"], variable: "--font-eczar" })
-const robotoCondensed = Roboto_Condensed({
-  subsets: ["latin"],
-  weight: ["300", "400", "700"],
+// Self-hosted as local files instead of next/font/google: both are single
+// variable-font woff2 files (Google now serves the same file for every
+// static weight request), downloaded once from Google Fonts and committed
+// under app/fonts/. This removes the network fetch to fonts.googleapis.com
+// at build time, which was intermittently failing deploys with a
+// "Module not found" error on the generated font module.css.
+const eczar = localFont({
+  src: "./fonts/Eczar-Variable.woff2",
+  weight: "400 800",
+  variable: "--font-eczar",
+})
+const robotoCondensed = localFont({
+  src: "./fonts/RobotoCondensed-Variable.woff2",
+  weight: "300 700",
   variable: "--font-roboto-condensed",
 })
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://app.kronova.io"),
+  alternates: {
+    canonical: "https://app.kronova.io",
+  },
   title: {
     default: "Kronova Intelligent Systems",
     template: "%s | Kronova",
   },
   description:
-    "Enterprise AI that Pays for Itself in 90 days. The only platform combining Canton Network, private stablecoins, and 18 proprietary AI tools. Replace 12 vendors with one. See ROI in your first quarter.",
+    "Kronova Asset Intelligence and Orchestration Platform is an open-source AI orchestration engine. Sign up and use it for free, fork the codebase, and connect production workloads to AetherNet QUAS and KVS for sovereign, post-quantum-secure execution.",
   generator: `app.kronova.io v${getVersion().appVersion}`,
   manifest: "/manifest.json",
   applicationName: "Kronova",
@@ -45,7 +59,8 @@ export const metadata: Metadata = {
       default: "Kronova Intelligent Systems",
       template: "%s | Kronova",
     },
-    description:"Enterprise AI That Pays For Itself in 90 Days. The only platform combining Canton Network, private stablecoins, and 18 proprietary AI tools. Replace 12 vendors with one. See ROI in your first quarter.",
+    description:
+      "Open-source AI asset intelligence and orchestration. Use Kronova for free, fork the codebase, and connect to AetherNet QUAS and KVS for sovereign, post-quantum-secure execution.",
     url: "https://app.kronova.io",
     images: [
       {
@@ -92,7 +107,7 @@ export const metadata: Metadata = {
       template: "%s | Kronova",
     },
     description:
-      "Enterprise AI that Pays for itself in 90 days and delivers 25:1 ROI.The only platform combining Canton Network, private stablecoins, and 18 proprietary AI tools. Replace 12 vendors with one. See ROI in your first quarter.",
+      "Open-source AI asset intelligence and orchestration. Use Kronova for free, fork the codebase, and connect to AetherNet QUAS and KVS for sovereign, post-quantum-secure execution.",
     images: [
       {
         url: "/images/landing/aether-ecosystem-hero.png",

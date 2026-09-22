@@ -8,7 +8,10 @@
       "TURBOPACK": "1"
     }
   },
-  "crons": [],
+  "crons": [
+    { "path": "/api/cron/sync-ai-models",        "schedule": "0 6 1,15 * *" },
+    { "path": "/api/cron/deactivate-stale-models","schedule": "0 7 1 * *"   }
+  ],
   "cleanUrls": true,
   "trailingSlash": false,
   "functions": {
@@ -48,5 +51,5 @@
   "buildCommand": "rm -rf .next && bun run build",
   "devCommand": "bun run dev",
   "framework": "nextjs",
-  "regions": ["iad1", "sfo1"]
+  "regions": ["iad1"]
 }

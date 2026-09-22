@@ -1,6 +1,6 @@
 {
   "name": "@kronova-intelligent-systems/sdk",
-  "version": "2.1.1",
+  "version": "2.1.0",
   "description": "Official TypeScript/JavaScript SDK for the Kronova Intelligent Systems Asset Intelligence Platform",
   "author": "Kronova Intelligent Systems <dev@kronova.io>",
   "license": "MIT",

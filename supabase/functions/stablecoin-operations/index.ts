@@ -9,7 +9,8 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
-import { Deno } from "https://deno.land/std@0.168.0/io/mod.ts" // Declaring Deno for linting
+// `Deno` is a runtime global in the Edge Functions environment; it does not
+// need to be (and cannot correctly be) imported from an std module.
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -21,8 +22,12 @@ interface StablecoinOperationRequest {
   stablecoinId: string
   amount?: string
   targetAddress?: string
-  userId: string
 }
+
+// Base-10 positive, non-zero integer only. Rejects negative/zero amounts,
+// which would otherwise let "mint" decrease supply or "burn" increase it
+// once passed through BigInt() arithmetic below.
+const POSITIVE_INTEGER_AMOUNT = /^[1-9][0-9]*$/
 
 serve(async (req) => {
   // Handle CORS
@@ -31,16 +36,40 @@ serve(async (req) => {
   }
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-    )
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? ""
+    const serviceRoleClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "")
+
+    // Identify the real caller from their Supabase-issued JWT rather than
+    // trusting a client-supplied `userId` field (which previously let
+    // anyone mint/burn against ANY stablecoin by simply naming its owner).
+    const authHeader = req.headers.get("Authorization") ?? ""
+    const jwt = authHeader.replace(/^Bearer\s+/i, "")
+
+    if (!jwt) {
+      return new Response(JSON.stringify({ success: false, error: "Authentication required" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401,
+      })
+    }
+
+    const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY") ?? "")
+    const {
+      data: { user },
+      error: authError,
+    } = await anonClient.auth.getUser(jwt)
+
+    if (authError || !user) {
+      return new Response(JSON.stringify({ success: false, error: "Invalid or expired session" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401,
+      })
+    }
 
     const body: StablecoinOperationRequest = await req.json()
-    const { operationType, stablecoinId, amount, targetAddress, userId } = body
+    const { operationType, stablecoinId, amount, targetAddress } = body
 
     // Get stablecoin record
-    const { data: stablecoin, error: stablecoinError } = await supabaseClient
+    const { data: stablecoin, error: stablecoinError } = await serviceRoleClient
       .from("private_stablecoins")
       .select("*")
       .eq("id", stablecoinId)
@@ -53,11 +82,28 @@ serve(async (req) => {
       })
     }
 
+    // Ownership check: only the stablecoin's owner may mint/burn/verify it.
+    // This must be checked here because this function uses the service-role
+    // client, which bypasses the private_stablecoins RLS policies entirely.
+    if (stablecoin.user_id !== user.id) {
+      return new Response(JSON.stringify({ success: false, error: "Access denied" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 403,
+      })
+    }
+
+    if ((operationType === "mint" || operationType === "burn") && !POSITIVE_INTEGER_AMOUNT.test(amount ?? "")) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Amount must be a positive whole number" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 },
+      )
+    }
+
     let result: any
 
     switch (operationType) {
       case "verify-collateral":
-        result = await verifyCollateral(supabaseClient, stablecoin, amount || "0")
+        result = await verifyCollateral(serviceRoleClient, stablecoin, amount || "0")
         break
 
       case "compliance-check":
@@ -65,11 +111,11 @@ serve(async (req) => {
         break
 
       case "mint":
-        result = await processMint(supabaseClient, stablecoin, amount || "0", targetAddress || "")
+        result = await processMint(serviceRoleClient, stablecoin, amount || "0", targetAddress || "", user.id)
         break
 
       case "burn":
-        result = await processBurn(supabaseClient, stablecoin, amount || "0")
+        result = await processBurn(serviceRoleClient, stablecoin, amount || "0", user.id)
         break
 
       default:
@@ -152,6 +198,7 @@ async function processMint(
   stablecoin: any,
   amount: string,
   targetAddress: string,
+  verifiedUserId: string,
 ): Promise<{ success: boolean; transactionId?: string; error?: string }> {
   try {
     // Verify collateral first
@@ -178,9 +225,21 @@ async function processMint(
       return { success: false, error: "Failed to record operation" }
     }
 
-    // Update total supply
-    const newSupply = (BigInt(stablecoin.total_supply || "0") + BigInt(amount)).toString()
-    await supabase.from("private_stablecoins").update({ total_supply: newSupply }).eq("id", stablecoin.id)
+    // Update total supply atomically, re-checking ownership against the
+    // already-verified caller id inside the same UPDATE statement. This
+    // avoids the lost-update race a JS read-then-write would allow under
+    // concurrent mint/burn calls, which could otherwise let concurrent
+    // requests each pass the collateral check above against a stale supply.
+    const { data: newSupply, error: supplyError } = await supabase.rpc("adjust_stablecoin_supply_as", {
+      p_stablecoin_id: stablecoin.id,
+      p_user_id: verifiedUserId,
+      p_delta: amount,
+    })
+
+    if (supplyError || !newSupply) {
+      console.error("[Process Mint] Supply update error:", supplyError)
+      return { success: false, error: "Failed to update supply record after mint" }
+    }
 
     return {
       success: true,
@@ -196,9 +255,11 @@ async function processBurn(
   supabase: any,
   stablecoin: any,
   amount: string,
+  verifiedUserId: string,
 ): Promise<{ success: boolean; transactionId?: string; error?: string }> {
   try {
-    // Validate burn amount
+    // Validate burn amount (best-effort pre-check; the atomic RPC below is
+    // the authoritative guard against a race making supply go negative)
     if (BigInt(amount) > BigInt(stablecoin.total_supply || "0")) {
       return { success: false, error: "Burn amount exceeds total supply" }
     }
@@ -220,9 +281,18 @@ async function processBurn(
       return { success: false, error: "Failed to record operation" }
     }
 
-    // Update total supply
-    const newSupply = (BigInt(stablecoin.total_supply || "0") - BigInt(amount)).toString()
-    await supabase.from("private_stablecoins").update({ total_supply: newSupply }).eq("id", stablecoin.id)
+    // Update total supply atomically; see processMint for why this can't
+    // be a JS read-then-write.
+    const { data: newSupply, error: supplyError } = await supabase.rpc("adjust_stablecoin_supply_as", {
+      p_stablecoin_id: stablecoin.id,
+      p_user_id: verifiedUserId,
+      p_delta: `-${amount}`,
+    })
+
+    if (supplyError || !newSupply) {
+      console.error("[Process Burn] Supply update error:", supplyError)
+      return { success: false, error: "Failed to update supply record after burn" }
+    }
 
     return {
       success: true,

@@ -78,7 +78,7 @@ export function HeroSection() {
             </motion.div>
 
             <motion.p variants={fadeIn} className="max-w-2xl text-base md:text-lg text-muted-foreground leading-relaxed">
-              The only platform combining autonomous AI agents, secure communication networks, and post-quantum blockchain technology. Build, deploy, and orchestrate intelligent systems that transform your business operations.
+              The only platform utilizing a sovereign, cloud agnostic, post-quantum-secure, zero-trust, new-era mainframe to secure mission-critical, intelligent M2M commerce, AI token commoditization, RWA tokenization, MCP payloads, institutional AP2 payments and escrows, and stablecoin transfers and issuance — while assuring regulatory compliance, from silicon to private settlement.
             </motion.p>
 
             <motion.div variants={fadeIn} className="flex flex-col sm:flex-row gap-4 pt-2">

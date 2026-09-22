@@ -5,7 +5,7 @@ import { createStablecoinManager } from "@/lib/blockchain/private-stablecoin"
 import { z } from "zod"
 
 const burnSchema = z.object({
-  amount: z.string(),
+  amount: z.string().regex(/^[1-9][0-9]*$/, "Amount must be a positive whole number"),
   reason: z.string().optional(),
 })
 

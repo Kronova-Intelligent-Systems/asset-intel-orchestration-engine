@@ -22,7 +22,7 @@ export const BRAND = {
   support: {
     email: "support@kronova.io",
     docs: "https://docs.kronova.io",
-    github: "https://github.com/kronova",
+    github: "https://github.com/kronova-intelligent-systems",
   },
   
   // Company information

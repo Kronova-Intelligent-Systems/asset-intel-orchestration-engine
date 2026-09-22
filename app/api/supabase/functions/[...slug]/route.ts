@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { createServerSupabaseClient } from "@/lib/supabase/server"
 
 // Initialize Supabase client for Edge Functions
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -11,9 +12,42 @@ if (!supabaseUrl || !supabaseServiceKey) {
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
+// This proxy forwards arbitrary caller input straight into a service-role
+// Edge Function invocation. It must never be usable to reach a function
+// that performs privileged, value-moving, or credential-issuing operations
+// (those have their own dedicated, ownership-checked API routes) — a
+// generic passthrough is the wrong place to enforce per-operation
+// authorization. Deny them here regardless of caller auth state.
+const BLOCKED_FUNCTIONS = new Set([
+  "stablecoin-operations",
+  "tokenize-asset",
+  "process-ap2-mandate",
+  "oauth-introspect",
+])
+
 // Helper function to get the function name from the slug
 function getFunctionName(slug: string[]): string {
   return slug.join("/")
+}
+
+async function authorizeRequest(functionName: string): Promise<NextResponse | null> {
+  if (BLOCKED_FUNCTIONS.has(functionName)) {
+    return NextResponse.json(
+      { error: `Function '${functionName}' is not accessible via the generic Edge Function proxy` },
+      { status: 403 },
+    )
+  }
+
+  const supabaseSSR = await createServerSupabaseClient()
+  const {
+    data: { user },
+  } = await supabaseSSR.auth.getUser()
+
+  if (!user) {
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 })
+  }
+
+  return null
 }
 
 // Helper function to invoke Supabase Edge Function
@@ -55,6 +89,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const resolvedParams = await params
     const functionName = getFunctionName(resolvedParams.slug)
 
+    const authError = await authorizeRequest(functionName)
+    if (authError) return authError
+
     // Extract query parameters
     const searchParams = request.nextUrl.searchParams
     const queryParams = Object.fromEntries(searchParams.entries())
@@ -87,6 +124,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   try {
     const resolvedParams = await params
     const functionName = getFunctionName(resolvedParams.slug)
+
+    const authError = await authorizeRequest(functionName)
+    if (authError) return authError
 
     // Parse request body
     let payload: any = {}
@@ -127,6 +167,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const resolvedParams = await params
     const functionName = getFunctionName(resolvedParams.slug)
 
+    const authError = await authorizeRequest(functionName)
+    if (authError) return authError
+
     // Parse request body
     let payload: any = {}
     try {
@@ -165,6 +208,9 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   try {
     const resolvedParams = await params
     const functionName = getFunctionName(resolvedParams.slug)
+
+    const authError = await authorizeRequest(functionName)
+    if (authError) return authError
 
     // Extract query parameters for DELETE requests
     const searchParams = request.nextUrl.searchParams

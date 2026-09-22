@@ -36,10 +36,10 @@ interface DashboardProps {
 }
 
 const agentDistribution = [
-  { name: "GPT-4", value: 35, color: "hsl(var(--chart-1))" },
-  { name: "Claude", value: 25, color: "hsl(var(--chart-2))" },
-  { name: "Gemini", value: 20, color: "hsl(var(--chart-3))" },
-  { name: "Custom", value: 20, color: "hsl(var(--chart-4))" },
+  { name: "GPT-4", value: 35, color: "var(--chart-1)" },
+  { name: "Claude", value: 25, color: "var(--chart-2)" },
+  { name: "Gemini", value: 20, color: "var(--chart-3)" },
+  { name: "Custom", value: 20, color: "var(--chart-4)" },
 ]
 
 const mockChartData = [
@@ -360,8 +360,8 @@ export function AISuiteDashboard({ user }: DashboardProps) {
                       <Area
                         type="monotone"
                         dataKey="requests"
-                        stroke="hsl(var(--primary))"
-                        fill="hsl(var(--primary))"
+                        stroke="var(--primary)"
+                        fill="var(--primary)"
                         fillOpacity={0.2}
                         name="Requests"
                       />

@@ -12,7 +12,7 @@ import { PWARegister } from "@/components/pwa-register"
 export const metadata: Metadata = {
   title: "Kronova Intelligent Systems",
   description:
-    "Enterprise AI That Pays for Itself in 90 days. The only platform combining Canton Network, private stablecoins, 18 proprietary AI tools, voice command. Replace 12 vendors with one. See ROI in your first quarter.",
+    "An open-source AI asset intelligence and orchestration platform. Sign up and use Kronova for free, fork the codebase, and connect to AetherNet QUAS and KVS for sovereign, post-quantum-secure execution.",
   keywords: [
     "Kronova",
     "Vertical AI",

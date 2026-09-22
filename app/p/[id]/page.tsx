@@ -29,8 +29,14 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
       try {
         console.log("Fetching profile with public_id:", resolvedParams.id)
 
-        // Directly fetch the profile without the preliminary check
-        const { data, error } = await supabase.from("profiles").select("*").eq("public_id", resolvedParams.id).single()
+        // Query the column-limited public view instead of the profiles table directly,
+        // so this page can never receive sensitive fields (stripe_customer_id, waddress,
+        // username, etc.) even via a future select("*").
+        const { data, error } = await supabase
+          .from("public_profile_cards")
+          .select("*")
+          .eq("public_id", resolvedParams.id)
+          .single()
 
         if (error) {
           console.error("Error fetching profile:", error)

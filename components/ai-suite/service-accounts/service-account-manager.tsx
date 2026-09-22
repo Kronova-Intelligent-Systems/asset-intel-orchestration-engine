@@ -210,7 +210,7 @@ export function ServiceAccountManager({ initialAccounts }: ServiceAccountManager
                   className="gap-1.5 text-xs h-7 text-muted-foreground hover:text-primary hover:bg-primary/10"
                   asChild
                 >
-                  <a href="/ai-suite/settings/api-keys">
+                  <a href={`/ai-suite/settings?tab=api-keys&sa=${account.id}`}>
                     <KeyRound className="h-3 w-3" />
                     Keys
                   </a>

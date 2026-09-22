@@ -40,6 +40,23 @@ export type DeployStablecoinRequest = z.infer<typeof deployStablecoinSchema>
 export type StablecoinOperation = z.infer<typeof stablecoinOperationSchema>
 export type StablecoinHolder = z.infer<typeof stablecoinHolderSchema>
 
+// Strictly a positive, non-zero base-10 integer with no leading zeros, sign,
+// decimal point, or exponent. Rejects negative/zero amounts, which would
+// otherwise let a "mint" silently decrease supply (or a "burn" increase it)
+// once passed through BigInt() arithmetic downstream.
+const POSITIVE_INTEGER_AMOUNT = /^[1-9][0-9]*$/
+
+function assertValidAmount(amount: string): { valid: boolean; error?: string } {
+  if (!POSITIVE_INTEGER_AMOUNT.test(amount)) {
+    return { valid: false, error: "Amount must be a positive whole number (as a base-10 string)" }
+  }
+  // Guard against unreasonably large payloads before they hit BigInt/Canton/DB.
+  if (amount.length > 30) {
+    return { valid: false, error: "Amount exceeds maximum allowed magnitude" }
+  }
+  return { valid: true }
+}
+
 // ==================== Stablecoin Manager ====================
 
 export class PrivateStablecoinManager {
@@ -209,6 +226,11 @@ export class PrivateStablecoinManager {
         return { success: false, error: "Amount and target address are required" }
       }
 
+      const amountCheck = assertValidAmount(operation.amount)
+      if (!amountCheck.valid) {
+        return { success: false, error: amountCheck.error }
+      }
+
       // Get stablecoin record
       const { data: stablecoin, error } = await this.supabase
         .from("private_stablecoins")
@@ -249,13 +271,18 @@ export class PrivateStablecoinManager {
         return { success: false, error: "Canton mint transaction failed" }
       }
 
-      // Update total supply
-      const newSupply = (BigInt(stablecoin.total_supply || "0") + BigInt(operation.amount)).toString()
+      // Update total supply atomically (single UPDATE inside a SQL function)
+      // instead of read-then-write, so concurrent mint/burn calls can't lose
+      // an update or race past the collateral check with a stale supply.
+      const { data: newSupply, error: supplyError } = await this.supabase.rpc("adjust_stablecoin_supply", {
+        p_stablecoin_id: operation.stablecoinId,
+        p_delta: operation.amount,
+      })
 
-      await this.supabase
-        .from("private_stablecoins")
-        .update({ total_supply: newSupply })
-        .eq("id", operation.stablecoinId)
+      if (supplyError || !newSupply) {
+        console.error("[Stablecoin] Supply update error:", supplyError)
+        return { success: false, error: "Failed to update supply record after mint" }
+      }
 
       // Record operation
       await this.recordOperation(operation, mintResult.transactionId, "completed")
@@ -292,6 +319,11 @@ export class PrivateStablecoinManager {
         return { success: false, error: "Amount is required" }
       }
 
+      const amountCheck = assertValidAmount(operation.amount)
+      if (!amountCheck.valid) {
+        return { success: false, error: amountCheck.error }
+      }
+
       // Get stablecoin record
       const { data: stablecoin, error } = await this.supabase
         .from("private_stablecoins")
@@ -303,7 +335,8 @@ export class PrivateStablecoinManager {
         return { success: false, error: "Stablecoin not found" }
       }
 
-      // Validate burn amount
+      // Validate burn amount (best-effort pre-check; the atomic RPC below is
+      // the authoritative guard against a race making supply go negative)
       if (BigInt(operation.amount) > BigInt(stablecoin.total_supply || "0")) {
         return { success: false, error: "Burn amount exceeds total supply" }
       }
@@ -323,13 +356,17 @@ export class PrivateStablecoinManager {
         return { success: false, error: "Canton burn transaction failed" }
       }
 
-      // Update total supply
-      const newSupply = (BigInt(stablecoin.total_supply || "0") - BigInt(operation.amount)).toString()
+      // Update total supply atomically; see mintTokens for why this can't be
+      // a JS read-then-write.
+      const { data: newSupply, error: supplyError } = await this.supabase.rpc("adjust_stablecoin_supply", {
+        p_stablecoin_id: operation.stablecoinId,
+        p_delta: `-${operation.amount}`,
+      })
 
-      await this.supabase
-        .from("private_stablecoins")
-        .update({ total_supply: newSupply })
-        .eq("id", operation.stablecoinId)
+      if (supplyError || !newSupply) {
+        console.error("[Stablecoin] Supply update error:", supplyError)
+        return { success: false, error: "Failed to update supply record after burn" }
+      }
 
       // Record operation
       await this.recordOperation(operation, burnResult.transactionId, "completed")

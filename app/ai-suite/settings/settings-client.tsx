@@ -9,13 +9,21 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Key, User, Bell, Shield, Webhook, Lock, Network, Server } from "lucide-react"
 import ProfileForm from "@/app/profile/ProfileForm"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 
 interface SettingsClientProps {
   user: any
   profile: any
 }
 
+// Tabs that render inline here (the others are Links that navigate away).
+const INLINE_TABS = ["profile", "notifications", "security", "api-keys", "webhooks"]
+
 export function SettingsClient({ user, profile }: SettingsClientProps) {
+  const searchParams = useSearchParams()
+  const requestedTab = searchParams.get("tab")
+  const defaultTab = requestedTab && INLINE_TABS.includes(requestedTab) ? requestedTab : "profile"
+
   return (
     <div className="container mx-auto p-4 sm:p-6 max-w-6xl">
       <div className="mb-6 sm:mb-8">
@@ -25,7 +33,7 @@ export function SettingsClient({ user, profile }: SettingsClientProps) {
 
       <Card className="enterprise-card glass-morphism border-none">
         <CardContent className="p-4 sm:p-6">
-          <Tabs defaultValue="profile" className="space-y-6">
+          <Tabs defaultValue={defaultTab} className="space-y-6">
             <TabsList className="inline-flex w-full overflow-x-auto overflow-y-hidden lg:grid lg:grid-cols-8 gap-1 scrollbar-hide bg-muted/50 backdrop-blur-sm">
               <TabsTrigger
                 value="profile"
