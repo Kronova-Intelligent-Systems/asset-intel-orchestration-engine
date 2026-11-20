@@ -1,7 +1,7 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { type NextRequest, NextResponse, after } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { AgentSystem } from "@/lib/ai/agent-system"
-import { deliverWebhook } from "@/lib/webhooks/webhook-delivery"
+import { triggerWebhooks } from "@/lib/webhooks/webhook-delivery"
 import { formatAssetContext } from "@/lib/utils/asset-context-formatter"
 
 async function validateAPIKeyForExecution(apiKey: string) {
@@ -34,8 +34,9 @@ async function validateAPIKeyForExecution(apiKey: string) {
   return { valid: true, userId: result.user_id, apiKeyId: result.api_key_id }
 }
 
-export async function POST(request: NextRequest, { params }: { params: { agentId: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ agentId: string }> }) {
   const startTime = Date.now()
+  const { agentId } = await params
 
   try {
     const authHeader = request.headers.get("authorization")
@@ -86,7 +87,7 @@ export async function POST(request: NextRequest, { params }: { params: { agentId
     const { data: agent, error: agentError } = await supabase
       .from("ai_agents")
       .select("*")
-      .eq("id", params.agentId)
+      .eq("id", agentId)
       .eq("user_id", userId)
       .maybeSingle()
 
@@ -105,7 +106,7 @@ export async function POST(request: NextRequest, { params }: { params: { agentId
       return NextResponse.json(
         {
           error: "Agent not found or access denied",
-          message: `No agent found with ID ${params.agentId} for your account`,
+          message: `No agent found with ID ${agentId} for your account`,
         },
         { status: 404 },
       )
@@ -143,13 +144,13 @@ export async function POST(request: NextRequest, { params }: { params: { agentId
 
     let result
     try {
-      result = await agentSystem.executeAgent(params.agentId, fullPrompt)
+      result = await agentSystem.executeAgent(agentId, fullPrompt)
     } catch (error) {
       console.error("Agent execution error:", error)
 
       await supabase.from("ai_analysis_results").insert({
         user_id: userId,
-        agent_id: params.agentId,
+        agent_id: agentId,
         prompt: prompt,
         result: `Execution failed: ${error instanceof Error ? error.message : "Unknown error"}`,
         metadata: {
@@ -162,6 +163,21 @@ export async function POST(request: NextRequest, { params }: { params: { agentId
           ...metadata,
         },
       })
+
+      after(() =>
+        triggerWebhooks({
+          userId,
+          event: "agent.execution.failed",
+          webhookUrl,
+          payload: {
+            agentId,
+            agentName: agent.name,
+            error: error instanceof Error ? error.message : "Unknown error",
+            executionTime: Date.now() - startTime,
+            timestamp: new Date().toISOString(),
+          },
+        }),
+      )
 
       return NextResponse.json(
         {
@@ -178,7 +194,7 @@ export async function POST(request: NextRequest, { params }: { params: { agentId
       .from("ai_analysis_results")
       .insert({
         user_id: userId,
-        agent_id: params.agentId,
+        agent_id: agentId,
         prompt: prompt,
         result: result.finalResponse,
         metadata: {
@@ -203,65 +219,29 @@ export async function POST(request: NextRequest, { params }: { params: { agentId
         last_executed_at: new Date().toISOString(),
         execution_count: (agent.execution_count || 0) + 1,
       })
-      .eq("id", params.agentId)
+      .eq("id", agentId)
 
-    const webhookDeliveryPromises = []
-
-    if (webhookUrl) {
-      webhookDeliveryPromises.push(
-        deliverWebhook({
-          url: webhookUrl,
-          event: "agent.execution.completed",
-          payload: {
-            agentId: params.agentId,
-            agentName: agent.name,
-            executionId: executionRecord?.id,
-            result: result.finalResponse,
-            executionTime: executionTime,
-            timestamp: new Date().toISOString(),
-          },
-          userId,
-        }),
-      )
-    }
-
-    // Trigger registered webhooks
-    const { data: webhooks } = await supabase
-      .from("webhooks")
-      .select("*")
-      .eq("user_id", userId)
-      .eq("is_active", true)
-      .contains("events", ["agent.execution.completed"])
-
-    if (webhooks && webhooks.length > 0) {
-      for (const webhook of webhooks) {
-        webhookDeliveryPromises.push(
-          deliverWebhook({
-            url: webhook.url,
-            event: "agent.execution.completed",
-            payload: {
-              agentId: params.agentId,
-              agentName: agent.name,
-              executionId: executionRecord?.id,
-              result: result.finalResponse,
-              executionTime: executionTime,
-              timestamp: new Date().toISOString(),
-            },
-            userId,
-            webhookId: webhook.id,
-            secret: webhook.secret,
-          }),
-        )
-      }
-    }
-
-    // Don't wait for webhooks to complete
-    Promise.allSettled(webhookDeliveryPromises).catch(console.error)
+    // Delivered after the response is sent; `after` keeps the function alive for retries.
+    after(() =>
+      triggerWebhooks({
+        userId,
+        event: "agent.execution.completed",
+        webhookUrl,
+        payload: {
+          agentId,
+          agentName: agent.name,
+          executionId: executionRecord?.id,
+          result: result.finalResponse,
+          executionTime: executionTime,
+          timestamp: new Date().toISOString(),
+        },
+      }),
+    )
 
     return NextResponse.json({
       success: true,
       executionId: executionRecord?.id,
-      agentId: params.agentId,
+      agentId: agentId,
       agentName: agent.name,
       result: result.finalResponse,
       executionTime: executionTime,

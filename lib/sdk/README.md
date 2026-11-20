@@ -44,7 +44,7 @@ Creates a new Kronova SDK instance.
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `apiKey` | `string` | required | Your Kronova API key |
-| `baseUrl` | `string` | `https://api.kronova.io/v1` | API base URL |
+| `baseUrl` | `string` | `https://app.kronova.io/api/v1` | API base URL |
 | `timeout` | `number` | `30000` | Request timeout in ms |
 | `retries` | `number` | `3` | Number of retries on failure |
 | `debug` | `boolean` | `false` | Enable debug logging |
@@ -62,7 +62,7 @@ Creates a new Kronova SDK instance.
 | `kronova.stablecoins` | Stablecoin mint/burn/transfer |
 | `kronova.dataStreams` | Real-time SSE data streams |
 | `kronova.oauth` | OAuth 2.1 with PKCE |
-| `kronova.a2a` | Agent-to-Agent (A2A) protocol |
+| `kronova.a2a` | Agent-to-Agent (A2A) protocol, served at `/api/a2a` on the same origin as `baseUrl`. Needs `read:agents` / `write:agents` scopes (`discover()` is public) |
 | `kronova.support` | Kairo AI support chatbot |
 
 ## License

@@ -16,7 +16,7 @@ export async function detectAnomalies({
   method?: string
   timeRange?: string
 }): Promise<AnomalyResult[]> {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
 
   try {
     // Get all shipping embeddings for the user

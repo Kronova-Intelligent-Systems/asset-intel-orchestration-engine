@@ -63,7 +63,7 @@ function classifyRoute(pathname: string): RouteClassification {
     "/forgot-password",
     "/reset-password",
     "/about",
-    "/api-docs",
+    "/docs",
     "/demo",
     "/p/",
     "/track/",

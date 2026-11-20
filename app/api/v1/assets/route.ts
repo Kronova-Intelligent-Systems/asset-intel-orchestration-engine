@@ -2,8 +2,9 @@
  * Kronova v1 Assets API
  */
 
-import type { NextRequest } from "next/server"
+import { type NextRequest, after } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { triggerWebhooks } from "@/lib/webhooks/webhook-delivery"
 import { validateAPIAuth, apiError, apiSuccess } from "@/lib/auth/api-auth"
 
 export async function GET(request: NextRequest) {
@@ -106,6 +107,21 @@ export async function POST(request: NextRequest) {
     if (error) {
       return apiError("Failed to create asset", 500)
     }
+
+    after(() =>
+      triggerWebhooks({
+        userId: auth.userId!,
+        event: "asset.created",
+        payload: {
+          assetId: data.id,
+          assetTag: data.asset_id,
+          name: data.name,
+          assetType: data.asset_type,
+          status: data.status,
+          timestamp: new Date().toISOString(),
+        },
+      }),
+    )
 
     return apiSuccess(data, 201)
   } catch (error) {

@@ -2,8 +2,8 @@
 
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
-import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
+import type { z } from "zod"
 import type { Database } from "@/lib/supabase/database.types"
 import { shippingSchema, reusablePackageSchema } from "@/lib/schemas/shipping"
 import { createUpsShipment } from "@/lib/shipping-carriers/ups"
@@ -22,8 +22,7 @@ type PackageUtilizationRow = Database["public"]["Views"]["package_utilization"][
 
 // Fetch all shipping records for a user
 export async function getShippingData() {
-  const cookieStore = cookies()
-  const supabase = createServerSupabaseClient(cookieStore)
+  const supabase = await createServerSupabaseClient()
 
   try {
     const {
@@ -54,8 +53,7 @@ export async function getShippingData() {
 
 // Fetch all reusable packages
 export async function getReusablePackages() {
-  const cookieStore = cookies()
-  const supabase = createServerSupabaseClient(cookieStore)
+  const supabase = await createServerSupabaseClient()
 
   try {
     const {
@@ -86,8 +84,7 @@ export async function getReusablePackages() {
 
 // Update a reusable package
 export async function updateReusablePackage(packageId: string, updates: Partial<ReusablePackageInsert>) {
-  const cookieStore = cookies()
-  const supabase = createServerSupabaseClient(cookieStore)
+  const supabase = await createServerSupabaseClient()
 
   try {
     const {
@@ -123,11 +120,11 @@ export async function updateReusablePackage(packageId: string, updates: Partial<
 }
 
 // Create a new shipping record
-export async function createShippingRecord(
-  shippingData: Omit<ShippingInsert, "id" | "public_id" | "created_at" | "updated_at">,
-) {
-  const cookieStore = cookies()
-  const supabase = createServerSupabaseClient(cookieStore)
+const createShippingInputSchema = shippingSchema.omit({ id: true, tracking_number: true })
+type CreateShippingInput = z.input<typeof createShippingInputSchema>
+
+export async function createShippingRecord(shippingData: CreateShippingInput) {
+  const supabase = await createServerSupabaseClient()
 
   try {
     const {
@@ -137,7 +134,7 @@ export async function createShippingRecord(
       return { success: false, error: "User not authenticated" }
     }
 
-    const validatedData = shippingSchema.omit({ id: true }).parse(shippingData)
+    const validatedData = createShippingInputSchema.parse(shippingData)
 
     let carrierResponse
     if (validatedData.carrier?.toLowerCase() === "ups") {
@@ -217,8 +214,7 @@ export async function createShippingRecord(
 
 // Update a shipping record
 export async function updateShippingRecord(shippingId: string, updates: Partial<ShippingInsert>) {
-  const cookieStore = cookies()
-  const supabase = createServerSupabaseClient(cookieStore)
+  const supabase = await createServerSupabaseClient()
 
   try {
     const {
@@ -287,8 +283,7 @@ export async function updateShippingRecord(shippingId: string, updates: Partial<
 
 // Get shipping analytics
 export async function getShippingAnalytics() {
-  const cookieStore = cookies()
-  const supabase = createServerSupabaseClient(cookieStore)
+  const supabase = await createServerSupabaseClient()
 
   try {
     const {
@@ -381,8 +376,7 @@ export async function getShippingAnalytics() {
 
 // Get package utilization data
 export async function getPackageUtilization() {
-  const cookieStore = cookies()
-  const supabase = createServerSupabaseClient(cookieStore)
+  const supabase = await createServerSupabaseClient()
 
   try {
     const {

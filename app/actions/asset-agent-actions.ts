@@ -141,7 +141,7 @@ export async function createAssetAgent(formData: z.infer<typeof createAssetAgent
   } catch (error) {
     console.error("Error in createAssetAgent:", error)
     if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors[0].message }
+      return { success: false, error: error.issues[0].message }
     }
     return { success: false, error: "An unexpected error occurred" }
   }
@@ -237,7 +237,7 @@ export async function updateAssetAgent(formData: z.infer<typeof updateAssetAgent
   } catch (error) {
     console.error("Error in updateAssetAgent:", error)
     if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors[0].message }
+      return { success: false, error: error.issues[0].message }
     }
     return { success: false, error: "An unexpected error occurred" }
   }

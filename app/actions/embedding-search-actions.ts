@@ -17,7 +17,7 @@ export async function searchSimilarShipments({
   threshold?: number
   limit?: number
 }): Promise<ShipmentSearchResult[]> {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
 
   // Get environment variables
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL

@@ -20,7 +20,7 @@ export function Footer() {
           {/* Links */}
           <div className="flex items-center gap-6">
             <Link
-              href="/api-docs"
+              href="/docs"
               className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               Documentation

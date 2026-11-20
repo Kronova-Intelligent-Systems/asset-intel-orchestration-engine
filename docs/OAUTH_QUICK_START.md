@@ -57,7 +57,7 @@ console.log("Client ID:", client.data.client_id)
 
 Open in browser:
 ```
-https://YOUR_PROJECT_REF.supabase.co/auth/v1/oauth/authorize
+https://api.kronova.io/auth/v1/oauth/authorize
   ?client_id=YOUR_CLIENT_ID
   &redirect_uri=http://localhost:3000/callback
   &response_type=code
@@ -132,7 +132,7 @@ https://your-domain.com/api/v1/oauth/authorize
       "command": "mcp",
       "args": ["run", "resendit"],
       "oauth": {
-        "discovery_url": "https://YOUR_PROJECT_REF.supabase.co/.well-known/oauth-authorization-server/auth/v1",
+        "discovery_url": "https://api.kronova.io/.well-known/oauth-authorization-server/auth/v1",
         "client_id": "YOUR_CLIENT_ID",
         "redirect_uri": "http://localhost:3000/callback",
         "scopes": ["read_assets", "execute_agents"]

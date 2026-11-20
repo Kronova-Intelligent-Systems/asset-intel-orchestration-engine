@@ -208,11 +208,13 @@ export async function revokeMCPToken(
  * MCP clients use this for automatic OAuth configuration
  */
 export function getMCPDiscoveryURL(): string {
-  const projectRef = process.env.NEXT_PUBLIC_SUPABASE_URL?.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1]
-  if (!projectRef) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  if (!supabaseUrl) {
     throw new Error("Invalid Supabase URL configuration")
   }
-  return `https://${projectRef}.supabase.co/.well-known/oauth-authorization-server/auth/v1`
+  // Works for both the default <ref>.supabase.co host and a custom domain such as api.kronova.io
+  const { origin } = new URL(supabaseUrl)
+  return `${origin}/.well-known/oauth-authorization-server/auth/v1`
 }
 
 /**

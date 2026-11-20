@@ -19,18 +19,32 @@ import {
 } from "@/components/ui/dialog"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useToast } from "@/hooks/use-toast"
-import { createWebhook, getWebhooks, updateWebhook, deleteWebhook, getWebhookLogs } from "@/app/actions/webhook-actions"
-import { Plus, Trash2, Copy, Check, Zap, AlertCircle, CheckCircle, Clock, ExternalLink, History } from "lucide-react"
+import {
+  createWebhook,
+  getWebhooks,
+  updateWebhook,
+  deleteWebhook,
+  getWebhookLogs,
+  testWebhook,
+} from "@/app/actions/webhook-actions"
+import { WEBHOOK_EVENTS } from "@/lib/webhooks/events"
+import { WebhookVerificationGuide } from "@/components/webhooks/webhook-verification-guide"
+import {
+  Plus,
+  Trash2,
+  Copy,
+  Check,
+  Zap,
+  AlertCircle,
+  CheckCircle,
+  Clock,
+  ExternalLink,
+  History,
+  Send,
+} from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 
-const AVAILABLE_EVENTS = [
-  { value: "agent.execution.completed", label: "Agent Execution Completed" },
-  { value: "agent.execution.failed", label: "Agent Execution Failed" },
-  { value: "workflow.execution.completed", label: "Workflow Execution Completed" },
-  { value: "workflow.execution.failed", label: "Workflow Execution Failed" },
-  { value: "asset.created", label: "Asset Created" },
-  { value: "asset.updated", label: "Asset Updated" },
-]
+const AVAILABLE_EVENTS = WEBHOOK_EVENTS
 
 interface Webhook {
   id: string
@@ -39,7 +53,7 @@ interface Webhook {
   url: string
   description: string | null
   events: string[]
-  secret: string
+  secret?: string
   is_active: boolean
   last_status: string | null
   last_triggered_at: string | null
@@ -56,6 +70,7 @@ export function WebhookManagement() {
   const [copiedSecret, setCopiedSecret] = useState(false)
   const [viewingLogs, setViewingLogs] = useState<string | null>(null)
   const [webhookLogs, setWebhookLogs] = useState<any[]>([])
+  const [testingId, setTestingId] = useState<string | null>(null)
   const { toast } = useToast()
 
   const [formData, setFormData] = useState({
@@ -112,7 +127,7 @@ export function WebhookManagement() {
     }
   }
 
-  async function handleUpdateWebhook(id: string, data: Partial<Webhook>) {
+  async function handleUpdateWebhook(id: string, data: Pick<Webhook, "is_active">) {
     const result = await updateWebhook(id, data)
     if (result.success) {
       toast({
@@ -146,6 +161,19 @@ export function WebhookManagement() {
         variant: "destructive",
       })
     }
+  }
+
+  async function handleTestWebhook(id: string) {
+    setTestingId(id)
+    const result = await testWebhook(id)
+    setTestingId(null)
+
+    toast({
+      title: result.success ? "Test event delivered" : "Test event failed",
+      description: result.message ?? result.error,
+      variant: result.success ? "default" : "destructive",
+    })
+    loadWebhooks()
   }
 
   async function handleViewLogs(webhookId: string) {
@@ -183,6 +211,8 @@ export function WebhookManagement() {
                 Configure webhooks to receive real-time notifications about events in your account
               </CardDescription>
             </div>
+            <div className="flex flex-wrap items-center gap-2">
+            <WebhookVerificationGuide />
             <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
               <DialogTrigger asChild>
                 <Button>
@@ -312,6 +342,7 @@ export function WebhookManagement() {
                 )}
               </DialogContent>
             </Dialog>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -384,11 +415,31 @@ export function WebhookManagement() {
                         <Switch
                           checked={webhook.is_active}
                           onCheckedChange={(checked) => handleUpdateWebhook(webhook.id, { is_active: checked })}
+                          aria-label={`${webhook.is_active ? "Disable" : "Enable"} ${webhook.name}`}
                         />
-                        <Button variant="outline" size="sm" onClick={() => handleViewLogs(webhook.id)}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleTestWebhook(webhook.id)}
+                          disabled={testingId === webhook.id}
+                          aria-label={`Send test event to ${webhook.name}`}
+                        >
+                          <Send className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleViewLogs(webhook.id)}
+                          aria-label={`View delivery logs for ${webhook.name}`}
+                        >
                           <History className="h-4 w-4" />
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => handleDeleteWebhook(webhook.id)}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteWebhook(webhook.id)}
+                          aria-label={`Delete ${webhook.name}`}
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -411,34 +462,35 @@ export function WebhookManagement() {
             {webhookLogs.length === 0 ? (
               <p className="text-center py-8 text-muted-foreground">No delivery logs yet</p>
             ) : (
-              webhookLogs.map((log) => (
-                <Card key={log.id}>
-                  <CardContent className="pt-4">
-                    <div className="flex items-start justify-between gap-4">
+              webhookLogs.map((log) => {
+                const succeeded = log.response_status >= 200 && log.response_status < 300 && !log.error_message
+                return (
+                  <Card key={log.id}>
+                    <CardContent className="pt-4">
                       <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Badge variant={log.status === "success" ? "default" : "destructive"}>
-                            {log.status === "success" ? (
+                        <div className="flex flex-wrap items-center gap-2 mb-2">
+                          <Badge variant={succeeded ? "default" : "destructive"}>
+                            {succeeded ? (
                               <CheckCircle className="h-3 w-3 mr-1" />
                             ) : (
                               <AlertCircle className="h-3 w-3 mr-1" />
                             )}
-                            {log.status}
+                            {succeeded ? "success" : "failed"}
                           </Badge>
-                          <span className="text-sm font-mono">{log.event}</span>
-                          <span className="text-xs text-muted-foreground">{log.attempts} attempts</span>
+                          <span className="text-sm font-mono">{log.event_type}</span>
+                          {log.response_status && (
+                            <span className="text-xs text-muted-foreground">HTTP {log.response_status}</span>
+                          )}
                         </div>
                         {log.error_message && <p className="text-sm text-destructive mb-2">{log.error_message}</p>}
                         <p className="text-xs text-muted-foreground">
-                          {log.delivered_at
-                            ? `Delivered ${formatDistanceToNow(new Date(log.delivered_at), { addSuffix: true })}`
-                            : "Not delivered"}
+                          {formatDistanceToNow(new Date(log.delivered_at), { addSuffix: true })}
                         </p>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
+                    </CardContent>
+                  </Card>
+                )
+              })
             )}
           </div>
         </DialogContent>

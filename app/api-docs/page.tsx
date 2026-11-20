@@ -249,6 +249,15 @@ export default function ApiDocsPage() {
                     </code>
                   </div>
                 ))}
+                <div className="flex items-start gap-2 pt-2 border-t border-border/30">
+                  <Radio className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    REST API base URL:{" "}
+                    <code className="font-mono text-foreground">app.kronova.io/api/v1</code>. Edge Functions and
+                    Supabase Auth are served from{" "}
+                    <code className="font-mono text-foreground">api.kronova.io</code>.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -791,7 +800,7 @@ const { data, error } = await supabase.functions.invoke('execute-agent', {
 
 // Using fetch directly
 const response = await fetch(
-  'https://your-project.supabase.co/functions/v1/execute-agent',
+  'https://api.kronova.io/functions/v1/execute-agent',
   {
     method: 'POST',
     headers: {

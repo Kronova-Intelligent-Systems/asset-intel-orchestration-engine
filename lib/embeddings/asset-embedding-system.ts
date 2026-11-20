@@ -33,11 +33,15 @@ export interface AssetSearchResult {
 }
 
 export class AssetEmbeddingSystem extends EmbeddingSystem {
-  private supabase: any
+  private db?: Awaited<ReturnType<typeof createServerSupabaseClient>>
 
   constructor(supabaseUrl: string, supabaseKey: string, embeddingModel = "text-embedding-ada-002") {
     super(supabaseUrl, supabaseKey, embeddingModel)
-    this.supabase = createServerSupabaseClient()
+  }
+
+  private async getDb() {
+    this.db ??= await createServerSupabaseClient()
+    return this.db
   }
 
   // Create embeddings for asset data
@@ -59,7 +63,7 @@ export class AssetEmbeddingSystem extends EmbeddingSystem {
     } = options
 
     // Get asset data
-    const { data: asset, error: assetError } = await this.supabase
+    const { data: asset, error: assetError } = await (await this.getDb())
       .from("assets")
       .select("*")
       .eq("id", assetId)
@@ -95,7 +99,7 @@ export class AssetEmbeddingSystem extends EmbeddingSystem {
 
     // Create lifecycle event documents
     if (includeLifecycleEvents) {
-      const { data: events } = await this.supabase
+      const { data: events } = await (await this.getDb())
         .from("asset_lifecycle_events")
         .select("*")
         .eq("asset_id", assetId)
@@ -128,7 +132,7 @@ export class AssetEmbeddingSystem extends EmbeddingSystem {
 
     // Create insight documents
     if (includeInsights) {
-      const { data: insights } = await this.supabase
+      const { data: insights } = await (await this.getDb())
         .from("asset_intelligence_insights")
         .select("*")
         .eq("asset_id", assetId)
@@ -215,7 +219,7 @@ export class AssetEmbeddingSystem extends EmbeddingSystem {
     const queryEmbedding = await this.generateEmbedding(query)
 
     // Search for similar documents
-    const { data, error } = await this.supabase.rpc("match_embeddings", {
+    const { data, error } = await (await this.getDb()).rpc("match_embeddings", {
       query_embedding: queryEmbedding,
       match_threshold: threshold,
       match_count: limit * 2, // Get more results to filter
@@ -275,7 +279,7 @@ export class AssetEmbeddingSystem extends EmbeddingSystem {
     const { recommendationType, limit = 5, threshold = 0.75 } = options
 
     // Get the target asset
-    const { data: asset, error: assetError } = await this.supabase
+    const { data: asset, error: assetError } = await (await this.getDb())
       .from("assets")
       .select("*")
       .eq("id", assetId)

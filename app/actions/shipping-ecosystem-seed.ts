@@ -1,7 +1,6 @@
 "use server"
 
 import { createServerSupabaseClient } from "@/lib/supabase/server"
-import { cookies } from "next/headers"
 import { revalidatePath } from "next/cache"
 import { seedShippingEcosystem } from "@/scripts/seed-shipping-ecosystem"
 
@@ -28,8 +27,7 @@ export async function seedShippingEcosystemAction(packageCount = 50, shippingCou
 }
 
 export async function clearShippingData() {
-  const cookieStore = cookies()
-  const supabase = createServerSupabaseClient(cookieStore)
+  const supabase = await createServerSupabaseClient()
 
   try {
     // Clear in reverse dependency order

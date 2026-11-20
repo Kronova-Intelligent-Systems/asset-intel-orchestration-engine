@@ -14,6 +14,9 @@ import type {
   AssetWorkflow,
   DataEmbedding,
   SystemAIAgent,
+  AIModelSummary,
+  AIAgentSummary,
+  AIWorkflowSummary,
   TokenizedAsset,
   TokenOffer,
   TokenTransaction,
@@ -62,7 +65,7 @@ export function useAIAgents() {
         .order("created_at", { ascending: false })
 
       if (error) throw new Error(error.message)
-      return data as (AIAgent & { ai_models: AIModel })[]
+      return data as (AIAgent & { ai_models: AIModelSummary | null })[]
     },
     staleTime: 2 * 60 * 1000, // 2 minutes
   })
@@ -115,7 +118,7 @@ export function useAIWorkflowRuns(workflowId?: string) {
       const { data, error } = await query
 
       if (error) throw new Error(error.message)
-      return data as (AIWorkflowRun & { ai_workflows: AIWorkflow })[]
+      return data as (AIWorkflowRun & { ai_workflows: AIWorkflowSummary | null })[]
     },
     staleTime: 30 * 1000, // 30 seconds for real-time feel
   })
@@ -151,7 +154,7 @@ export function useAIAnalysisResults(sourceType?: string, sourceId?: string) {
       const { data, error } = await query
 
       if (error) throw new Error(error.message)
-      return data as (AIAnalysisResult & { ai_agents: AIAgent })[]
+      return data as (AIAnalysisResult & { ai_agents: AIAgentSummary | null })[]
     },
     staleTime: 60 * 1000, // 1 minute
   })
@@ -208,20 +211,12 @@ export function useAssetAgentConfigs() {
             id,
             name,
             description
-          ),
-          asset_intelligence_agent_templates (
-            id,
-            name,
-            category
           )
         `)
         .order("created_at", { ascending: false })
 
       if (error) throw new Error(error.message)
-      return data as (AssetAgentConfig & {
-        ai_agents: AIAgent
-        asset_intelligence_agent_templates: AssetIntelligenceAgentTemplate
-      })[]
+      return data as (AssetAgentConfig & { ai_agents: AIAgentSummary | null })[]
     },
     staleTime: 2 * 60 * 1000, // 2 minutes
   })
@@ -276,20 +271,12 @@ export function useSystemAIAgents() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("system_agent_templates")
-        .select(`
-          *,
-          ai_models (
-            id,
-            name,
-            provider,
-            model_id
-          )
-        `)
+        .select("*")
         .eq("is_active", true)
         .order("created_at", { ascending: false })
 
       if (error) throw new Error(error.message)
-      return data as (SystemAIAgent & { ai_models: AIModel })[]
+      return data as SystemAIAgent[]
     },
     staleTime: 10 * 60 * 1000, // 10 minutes
   })
@@ -396,19 +383,12 @@ export function useFractionalOwnership(userId?: string) {
     queryKey: ["fractional-ownership", userId],
     queryFn: async () => {
       let query = supabase
-        .from("fractional_ownership")
-        .select(`
-          *,
-          asset_tokens (
-            id,
-            token_id,
-            token_type
-          )
-        `)
+        .from("fractional_ownerships")
+        .select("*")
         .order("created_at", { ascending: false })
 
       if (userId) {
-        query = query.eq("owner_id", userId)
+        query = query.eq("user_id", userId)
       }
 
       const { data, error } = await query
@@ -429,12 +409,12 @@ export function useTokenizationMetrics() {
     queryFn: async () => {
       const [tokenizedAssetsResult, offersResult, transactionsResult, ownershipResult] = await Promise.all([
         supabase.from("asset_tokens").select("id"),
-        supabase.from("token_offers").select("id, status, price_per_token, quantity"),
+        supabase.from("token_offers").select("id, status, total_price"),
         supabase
           .from("token_transactions")
-          .select("id, transaction_type, quantity, price_per_token, created_at")
+          .select("id, transaction_type, fraction_count, price, created_at")
           .gte("created_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
-        supabase.from("fractional_ownership").select("id, shares_owned"),
+        supabase.from("fractional_ownerships").select("id, fraction_count"),
       ])
 
       const tokenizedAssets = tokenizedAssetsResult.data || []
@@ -447,11 +427,11 @@ export function useTokenizationMetrics() {
       const activeOffers = offers.filter((offer) => offer.status === "active").length
       const totalOfferVolume = offers
         .filter((offer) => offer.status === "active")
-        .reduce((sum, offer) => sum + offer.price_per_token * offer.quantity, 0)
+        .reduce((sum, offer) => sum + (offer.total_price ?? 0), 0)
 
-      const recentTransactionVolume = transactions.reduce((sum, tx) => sum + tx.price_per_token * tx.quantity, 0)
+      const recentTransactionVolume = transactions.reduce((sum, tx) => sum + (tx.price ?? 0), 0)
 
-      const totalSharesDistributed = ownership.reduce((sum, own) => sum + (own.shares_owned || 0), 0)
+      const totalSharesDistributed = ownership.reduce((sum, own) => sum + (own.fraction_count ?? 0), 0)
 
       return {
         totalTokenizedAssets,
@@ -636,8 +616,8 @@ export function useAILogsStatistics() {
           supabase.from("ai_request_logs").select("id", { count: "exact", head: true }),
           supabase.from("voice_execution_logs").select("id", { count: "exact", head: true }),
           supabase.from("ai_analysis_results").select("id", { count: "exact", head: true }),
-          supabase.from("ai_analysis_results").select("tokens_used"),
-          supabase.from("ai_analysis_results").select("execution_time_ms").not("execution_time_ms", "is", null),
+          supabase.from("ai_request_logs").select("tokens_used"),
+          supabase.from("ai_agent_runs").select("execution_time_ms").not("execution_time_ms", "is", null),
         ])
 
       const totalTokens = tokensResult.data?.reduce((sum, item) => sum + (item.tokens_used || 0), 0) || 0

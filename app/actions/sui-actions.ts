@@ -23,7 +23,7 @@ interface MintSuiNFTProps {
  */
 export async function mintSuiNFT(props: MintSuiNFTProps) {
   const { name, description, imageUrl, websiteUrl, userId } = props
-  // const supabase = createServerSupabaseClient(); // Supabase client not used in this version
+  // const supabase = await createServerSupabaseClient(); // Supabase client not used in this version
 
   if (!SNS_PACKAGE_ID || !SNS_REGISTRY_ID) {
     console.error("MintSuiNFT Error: SNS_PACKAGE_ID or SNS_REGISTRY_ID is not configured.")
@@ -101,7 +101,7 @@ interface RecordSuiMintProps {
  * into the application's database.
  */
 export async function recordSuiMint(props: RecordSuiMintProps) {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
   const { name, description, imageUrl, walletAddress, userId, objectId, txDigest } = props
 
   try {

@@ -8,7 +8,7 @@ import { redirect } from "next/navigation"
 
 // Mint NFT function (local database)
 export async function mintNFT({ userId, profileId, name }: { userId: string; profileId: string; name: string }) {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
 
   try {
     // Basic validation
@@ -51,7 +51,7 @@ export async function mintNFT({ userId, profileId, name }: { userId: string; pro
 
 // Mint Sui NFT function (on blockchain)
 export async function mintSuiNFT(profileId: string, name: string, description: string, imageUrl: string) {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
 
   // Get the user's session
   const {
@@ -159,7 +159,7 @@ export async function saveSuiNFT({
   txDigest: string
   imageUrl?: string
 }) {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
 
   try {
     // Basic validation

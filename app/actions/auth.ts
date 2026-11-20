@@ -127,11 +127,21 @@ export async function signUp(formData: z.infer<typeof signUpSchema>) {
           avatar_url: validatedData.avatar_url || "",
           company_logo_url: validatedData.company_logo_url || "",
         },
-        emailRedirectTo: process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+        emailRedirectTo: `${
+          process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+        }/auth/callback?redirect=/ai-suite`,
       },
     })
 
     if (error) throw error
+
+    // Supabase returns an obfuscated user with no identities when the email is already registered.
+    if (data.user && data.user.identities?.length === 0) {
+      return {
+        success: false,
+        message: "An account with this email already exists. Please sign in instead.",
+      }
+    }
 
     // Create a profile record immediately after signup
     try {
@@ -163,7 +173,7 @@ export async function signUp(formData: z.infer<typeof signUpSchema>) {
   } catch (error) {
     console.error("Error signing up:", error)
     if (error instanceof z.ZodError) {
-      return { success: false, message: error.errors[0].message }
+      return { success: false, message: error.issues[0].message }
     } else if (error instanceof Error) {
       return { success: false, message: error.message }
     } else {

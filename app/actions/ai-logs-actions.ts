@@ -149,7 +149,7 @@ export async function getAILogsStatistics(userId: string) {
 
     // Get total tokens used
     const { data: tokensData } = await supabase
-      .from("ai_analysis_results")
+      .from("ai_request_logs")
       .select("tokens_used")
       .eq("user_id", userId)
 
@@ -157,7 +157,7 @@ export async function getAILogsStatistics(userId: string) {
 
     // Get average execution time
     const { data: execTimeData } = await supabase
-      .from("ai_analysis_results")
+      .from("ai_agent_runs")
       .select("execution_time_ms")
       .eq("user_id", userId)
       .not("execution_time_ms", "is", null)

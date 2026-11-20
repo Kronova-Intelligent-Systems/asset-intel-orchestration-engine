@@ -7,6 +7,19 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js"
+import { after } from "next/server"
+import { decorateTask } from "./wire"
+import { extractSkillInvocation, runSkillForTask } from "./skill-executor"
+import { PqcError, attest, verifySender } from "@/lib/pqc/service"
+import { a2aMessageBody } from "@/lib/pqc/sign"
+import {
+  MAX_PUSH_CONFIGS_PER_TASK,
+  PUSH_EVENTS,
+  PushUrlError,
+  deliverPush,
+  validatePushUrl,
+  type PushEvent,
+} from "./push-notifications"
 
 // ============================================================================
 // A2A PROTOCOL TYPES (Section 4 - Protocol Data Model)
@@ -160,9 +173,25 @@ export interface SendMessageConfiguration {
 }
 
 export interface PushNotificationConfig {
+  id?: string
   url: string
-  authentication?: Record<string, any>
+  token?: string
+  authentication?: { schemes?: string[]; credentials?: string }
   eventsToSend?: string[]
+}
+
+/** What the server returns for a stored config. Credentials and tokens are never echoed back. */
+export interface TaskPushNotificationConfig {
+  taskId: string
+  pushNotificationConfig: {
+    id: string
+    url: string
+    authentication?: { schemes?: string[] }
+    eventsToSend: string[]
+    active: boolean
+    lastDeliveryAt?: string | null
+    lastDeliveryStatus?: string | null
+  }
 }
 
 export interface GetTaskRequest {
@@ -257,6 +286,20 @@ export class ContentTypeNotSupportedError extends A2AError {
   }
 }
 
+export class InvalidPushConfigError extends A2AError {
+  constructor(message: string) {
+    super(message, "INVALID_PUSH_CONFIG")
+    this.name = "InvalidPushConfigError"
+  }
+}
+
+export class PushConfigNotFoundError extends A2AError {
+  constructor(taskId: string, configId?: string) {
+    super(`Push notification config not found for task ${taskId}`, "PUSH_CONFIG_NOT_FOUND", { taskId, configId })
+    this.name = "PushConfigNotFoundError"
+  }
+}
+
 // ============================================================================
 // KRONOVA A2A CLIENT
 // ============================================================================
@@ -282,7 +325,7 @@ export class KronovaA2AClient {
     this.userId = config.userId
     this.agentCardId = config.agentCardId
     this.aethernetAddress = config.aethernetAddress
-    this.baseUrl = config.baseUrl || "https://api.kronova.io/a2a"
+    this.baseUrl = config.baseUrl || "https://app.kronova.io/api/a2a"
   }
 
   // ==========================================================================
@@ -329,12 +372,13 @@ export class KronovaA2AClient {
    * Get Agent Card by ID or discover remote agent
    */
   async getAgentCard(agentId: string): Promise<AgentCard | null> {
-    // First check local database
+    // Only the owner's cards and public cards are visible, even when running with the service-role client
     const { data: localCard } = await this.supabase
       .from("a2a_agent_cards")
       .select("*")
       .eq("agent_id", agentId)
-      .single()
+      .or(`user_id.eq.${this.userId},is_public.eq.true`)
+      .maybeSingle()
 
     if (localCard) {
       return this.mapDbToAgentCard(localCard)
@@ -372,6 +416,15 @@ export class KronovaA2AClient {
     const contextId = request.message.contextId || `ctx-${Date.now()}`
     const messageId = request.message.messageId || `msg-${Date.now()}`
 
+    // Validate before creating anything, so a rejected webhook leaves no orphan task
+    const pushConfig = request.configuration?.pushNotificationConfig
+      ? await this.normalizePushConfig(request.configuration.pushNotificationConfig)
+      : null
+
+    // Verified before anything is written. The `pqc` key is always set here, so a caller cannot forge it.
+    const pqc = await this.verifyMessageSignature(request.message)
+    const storedMessage: Message = { ...request.message, metadata: { ...(request.message.metadata ?? {}), pqc } }
+
     // Create task in database
     const { data: taskData, error: taskError } = await this.supabase
       .from("a2a_tasks")
@@ -387,12 +440,25 @@ export class KronovaA2AClient {
         history: [],
         artifacts: [],
         metadata: request.metadata,
-        push_notification_config: request.configuration?.pushNotificationConfig,
+        push_notification_config: pushConfig
+          ? { id: pushConfig.id, url: pushConfig.url, eventsToSend: pushConfig.eventsToSend }
+          : null,
       })
       .select()
       .single()
 
     if (taskError) throw new A2AError(taskError.message, "CREATE_TASK_FAILED")
+
+    if (pushConfig) {
+      const { error: pushError } = await this.supabase.from("a2a_push_notification_configs").insert({
+        task_id: taskData.id,
+        config_id: pushConfig.id,
+        url: pushConfig.url,
+        authentication: pushConfig.authentication,
+        events_to_send: pushConfig.eventsToSend,
+      })
+      if (pushError) throw new A2AError(pushError.message, "SET_PUSH_CONFIG_FAILED")
+    }
 
     // Create message in database
     const { error: msgError } = await this.supabase
@@ -405,7 +471,7 @@ export class KronovaA2AClient {
         parts: request.message.parts,
         reference_task_ids: request.message.referenceTaskIds,
         context_id: contextId,
-        metadata: request.message.metadata,
+        metadata: storedMessage.metadata,
         extensions: request.message.extensions,
       })
 
@@ -414,6 +480,22 @@ export class KronovaA2AClient {
     // Log to AI request logs for Kronova analytics
     await this.logA2ARequest(taskId, contextId, request)
 
+    const invocation = extractSkillInvocation(request)
+    if (invocation) {
+      await runSkillForTask(
+        {
+          supabase: this.supabase,
+          userId: this.userId,
+          updateTaskStatus: (id, status) => this.updateTaskStatus(id, status),
+          addArtifact: (id, artifact) => this.addArtifact(id, artifact),
+        },
+        taskId,
+        contextId,
+        invocation,
+      )
+      return this.getTask({ taskId })
+    }
+
     return {
       id: taskId,
       contextId,
@@ -421,7 +503,7 @@ export class KronovaA2AClient {
         state: "submitted",
         timestamp: new Date().toISOString(),
       },
-      history: [request.message],
+      history: [storedMessage],
       artifacts: [],
       metadata: request.metadata,
     }
@@ -529,6 +611,7 @@ export class KronovaA2AClient {
 
     if (error) throw new A2AError(error.message, "CANCEL_TASK_FAILED")
 
+    this.queuePushNotification(existing.id, request.taskId, "status_update")
     return this.mapDbToTask(data)
   }
 
@@ -550,6 +633,7 @@ export class KronovaA2AClient {
 
     if (error) throw new A2AError(error.message, "UPDATE_TASK_STATUS_FAILED")
 
+    this.queuePushNotification(data.id, taskId, "status_update")
     return this.mapDbToTask(data)
   }
 
@@ -585,7 +669,189 @@ export class KronovaA2AClient {
 
     if (error) throw new A2AError(error.message, "ADD_ARTIFACT_FAILED")
 
+    this.queuePushNotification(task.id, taskId, "artifact_update")
     return artifact
+  }
+
+  // ==========================================================================
+  // PUSH NOTIFICATION CONFIGS (Section 3.1.7)
+  // ==========================================================================
+
+  private async requireTaskRow(taskId: string): Promise<{ id: string }> {
+    const { data, error } = await this.supabase
+      .from("a2a_tasks")
+      .select("id")
+      .eq("task_id", taskId)
+      .eq("user_id", this.userId)
+      .single()
+    if (error || !data) throw new TaskNotFoundError(taskId)
+    return data
+  }
+
+  private async normalizePushConfig(config: PushNotificationConfig) {
+    if (!config || typeof config !== "object") throw new InvalidPushConfigError("pushNotificationConfig must be an object")
+
+    try {
+      await validatePushUrl(config.url)
+    } catch (error) {
+      if (error instanceof PushUrlError) throw new InvalidPushConfigError(error.message)
+      throw error
+    }
+
+    if (config.id !== undefined && (typeof config.id !== "string" || !/^[A-Za-z0-9._:-]{1,128}$/.test(config.id))) {
+      throw new InvalidPushConfigError("pushNotificationConfig.id must be 1-128 characters of letters, digits, . _ : -")
+    }
+    if (config.token !== undefined && (typeof config.token !== "string" || config.token.length > 512)) {
+      throw new InvalidPushConfigError("pushNotificationConfig.token must be a string of at most 512 characters")
+    }
+
+    const eventsToSend = config.eventsToSend ?? [...PUSH_EVENTS]
+    if (
+      !Array.isArray(eventsToSend) ||
+      eventsToSend.length === 0 ||
+      eventsToSend.some((event) => !PUSH_EVENTS.includes(event as PushEvent))
+    ) {
+      throw new InvalidPushConfigError(`eventsToSend must be a non-empty subset of: ${PUSH_EVENTS.join(", ")}`)
+    }
+
+    const auth = config.authentication
+    if (auth !== undefined) {
+      const validSchemes =
+        auth.schemes === undefined ||
+        (Array.isArray(auth.schemes) &&
+          auth.schemes.length <= 5 &&
+          auth.schemes.every((scheme) => typeof scheme === "string" && /^[A-Za-z][A-Za-z0-9-]{0,31}$/.test(scheme)))
+      const validCredentials =
+        auth.credentials === undefined || (typeof auth.credentials === "string" && auth.credentials.length <= 2048)
+      if (!auth || typeof auth !== "object" || !validSchemes || !validCredentials) {
+        throw new InvalidPushConfigError("pushNotificationConfig.authentication must have string schemes and credentials")
+      }
+    }
+
+    return {
+      id: config.id ?? `cfg-${crypto.randomUUID()}`,
+      url: config.url,
+      eventsToSend: eventsToSend as string[],
+      authentication:
+        auth || config.token ? { schemes: auth?.schemes, credentials: auth?.credentials, token: config.token } : null,
+    }
+  }
+
+  private mapDbToPushConfig(taskId: string, row: any): TaskPushNotificationConfig {
+    return {
+      taskId,
+      pushNotificationConfig: {
+        id: row.config_id,
+        url: row.url,
+        authentication: row.authentication?.schemes ? { schemes: row.authentication.schemes } : undefined,
+        eventsToSend: row.events_to_send ?? [...PUSH_EVENTS],
+        active: row.is_active !== false,
+        lastDeliveryAt: row.last_delivery_at,
+        lastDeliveryStatus: row.last_delivery_status,
+      },
+    }
+  }
+
+  async setPushConfig(taskId: string, config: PushNotificationConfig): Promise<TaskPushNotificationConfig> {
+    const task = await this.requireTaskRow(taskId)
+    const normalized = await this.normalizePushConfig(config)
+
+    const { data: existing } = await this.supabase
+      .from("a2a_push_notification_configs")
+      .select("config_id")
+      .eq("task_id", task.id)
+    const ids = (existing || []).map((row: any) => row.config_id)
+    if (!ids.includes(normalized.id) && ids.length >= MAX_PUSH_CONFIGS_PER_TASK) {
+      throw new InvalidPushConfigError(`A task supports at most ${MAX_PUSH_CONFIGS_PER_TASK} push notification configs`)
+    }
+
+    const { data, error } = await this.supabase
+      .from("a2a_push_notification_configs")
+      .upsert(
+        {
+          task_id: task.id,
+          config_id: normalized.id,
+          url: normalized.url,
+          authentication: normalized.authentication,
+          events_to_send: normalized.eventsToSend,
+          is_active: true,
+        },
+        { onConflict: "task_id,config_id" },
+      )
+      .select()
+      .single()
+    if (error) throw new A2AError(error.message, "SET_PUSH_CONFIG_FAILED")
+
+    return this.mapDbToPushConfig(taskId, data)
+  }
+
+  async listPushConfigs(taskId: string): Promise<TaskPushNotificationConfig[]> {
+    const task = await this.requireTaskRow(taskId)
+    const { data, error } = await this.supabase
+      .from("a2a_push_notification_configs")
+      .select("*")
+      .eq("task_id", task.id)
+      .order("created_at", { ascending: true })
+    if (error) throw new A2AError(error.message, "LIST_PUSH_CONFIGS_FAILED")
+    return (data || []).map((row: any) => this.mapDbToPushConfig(taskId, row))
+  }
+
+  async getPushConfig(taskId: string, configId?: string): Promise<TaskPushNotificationConfig> {
+    const configs = await this.listPushConfigs(taskId)
+    const match = configId ? configs.find((entry) => entry.pushNotificationConfig.id === configId) : configs[0]
+    if (!match) throw new PushConfigNotFoundError(taskId, configId)
+    return match
+  }
+
+  async deletePushConfig(taskId: string, configId: string): Promise<void> {
+    const task = await this.requireTaskRow(taskId)
+    const { data, error } = await this.supabase
+      .from("a2a_push_notification_configs")
+      .delete()
+      .eq("task_id", task.id)
+      .eq("config_id", configId)
+      .select("id")
+    if (error) throw new A2AError(error.message, "DELETE_PUSH_CONFIG_FAILED")
+    if (!data || data.length === 0) throw new PushConfigNotFoundError(taskId, configId)
+  }
+
+  /** Delivers after the response is sent, so a slow webhook never delays the caller. */
+  private queuePushNotification(taskRowId: string, taskId: string, event: PushEvent) {
+    const work = async () => {
+      try {
+        const { data: configs } = await this.supabase
+          .from("a2a_push_notification_configs")
+          .select("*")
+          .eq("task_id", taskRowId)
+          .eq("is_active", true)
+          .contains("events_to_send", [event])
+        if (!configs || configs.length === 0) return
+
+        const payload = decorateTask(await this.getTask({ taskId }))
+        await Promise.all(
+          configs.map(async (config: any) => {
+            const result = await deliverPush(
+              { url: config.url, authentication: config.authentication },
+              event,
+              payload,
+            )
+            await this.supabase
+              .from("a2a_push_notification_configs")
+              .update({ last_delivery_at: new Date().toISOString(), last_delivery_status: result.status })
+              .eq("id", config.id)
+          }),
+        )
+      } catch (error) {
+        console.error("[Kronova A2A] Push notification dispatch failed:", error)
+      }
+    }
+
+    try {
+      after(work)
+    } catch {
+      // Outside a request scope (scripts, tests) there is no after(); run it detached
+      void work()
+    }
   }
 
   // ==========================================================================
@@ -599,23 +865,75 @@ export class KronovaA2AClient {
     targetAddress: string,
     request: SendMessageRequest
   ): Promise<Task | Message> {
-    // Log AetherNet message
-    if (this.aethernetAddress) {
-      await this.supabase
-        .from("aethernet_messages")
-        .insert({
-          user_id: this.userId,
-          sender_address: this.aethernetAddress,
-          recipient_address: targetAddress,
-          message_type: "a2a_message",
-          payload: request,
-          status: "pending",
-        })
+    const address = typeof targetAddress === "string" ? targetAddress.trim() : ""
+    if (!address || address.length > 256) {
+      throw new A2AError("targetAddress must be 1-256 characters", "INVALID_TARGET_ADDRESS")
     }
 
-    // Process the message locally for now
-    // In production, this would route through AetherNet P2P
-    return this.sendMessage(request)
+    // Verifies the sender's post-quantum signature, then processes the message locally.
+    const result = await this.sendMessage(request)
+    if (!("status" in result) || !("id" in result)) return result
+
+    // The open platform does not route over AetherNet; live routing is AetherNet QUAS.
+    // The task records that honestly, with a platform attestation when a platform key is configured.
+    const attestation = await attest("a2a.aethernet.bridge", {
+      targetAddress: address,
+      taskId: result.id,
+      contextId: result.contextId,
+    })
+    const metadata = {
+      ...(result.metadata ?? {}),
+      aethernet: {
+        targetAddress: address,
+        routed: false,
+        note: "Processed locally. Live AetherNet routing and post-quantum encryption in transit are AetherNet QUAS.",
+        attestation,
+      },
+    }
+    const { error } = await this.supabase
+      .from("a2a_tasks")
+      .update({ metadata })
+      .eq("task_id", result.id)
+      .eq("user_id", this.userId)
+    if (error) {
+      console.error("[A2A] Failed to record AetherNet bridge metadata:", error.message)
+      return result
+    }
+    return { ...result, metadata }
+  }
+
+  /**
+   * Verifies an optional ML-DSA-65 signature carried in message.metadata.pqcSignature.
+   * Returns the verification record stored with the message.
+   */
+  private async verifyMessageSignature(message: Message): Promise<Record<string, unknown>> {
+    const raw = message.metadata?.pqcSignature
+    try {
+      if (raw !== undefined && raw !== null && !message.messageId) {
+        throw new PqcError("A signed message must carry its own messageId", "PQC_MESSAGE_ID_REQUIRED")
+      }
+      const result = await verifySender({
+        supabase: this.supabase,
+        userId: this.userId,
+        domain: "a2a.message",
+        body: a2aMessageBody({ ...message, messageId: message.messageId ?? "" }),
+        signature: raw,
+      })
+      if (result.status === "unsigned") return { status: "unsigned" }
+
+      const { data: seen } = await this.supabase
+        .from("a2a_messages")
+        .select("id")
+        .eq("user_id", this.userId)
+        .eq("message_id", message.messageId)
+        .limit(1)
+      if (seen?.length) throw new PqcError("This signed message was already received", "PQC_REPLAY")
+
+      return { status: "verified", keyId: result.keyId, alg: result.alg, signedAt: result.signedAt }
+    } catch (error) {
+      if (error instanceof PqcError) throw new A2AError(error.message, error.code)
+      throw error
+    }
   }
 
   // ==========================================================================

@@ -682,16 +682,26 @@ export class AIClient {
           openAIRequest.max_tokens = openAIRequest.max_tokens || 8192
         }
 
+        // GPT-5 and o-series reject max_tokens, temperature and top_p. The completion budget also
+        // covers hidden reasoning tokens, so it needs headroom or the visible reply comes back empty.
+        if (this.provider === "openai" && /^(gpt-5|o\d)/.test(model)) {
+          const { max_tokens, temperature, top_p, ...rest } = openAIRequest
+          return { ...rest, max_completion_tokens: Math.max(max_tokens ?? 0, 4096) }
+        }
+
         return openAIRequest
-      case "anthropic":
+      case "anthropic": {
+        const anthropicModel = params.model || this.defaultModel
+        // Claude 5 models and Opus 4.7+ deprecate sampling parameters and return 400 if they are sent.
+        const rejectsSampling = /^claude-(fable|opus|sonnet|haiku)-5|^claude-opus-4-([7-9]|\d{2})/.test(anthropicModel)
         return {
-          model: params.model || this.defaultModel,
+          model: anthropicModel,
           messages: params.messages,
-          temperature: params.temperature,
-          top_p: params.top_p,
+          ...(rejectsSampling ? {} : { temperature: params.temperature, top_p: params.top_p }),
           max_tokens: params.max_tokens,
           stream: params.stream,
         }
+      }
       case "mistral":
         return {
           model: params.model || this.defaultModel,
@@ -1063,7 +1073,7 @@ export class AIClient {
               index: 0,
               message: {
                 role: "assistant",
-                content: response.content[0].text,
+                content: response.content.find((block: { type: string }) => block.type === "text")?.text ?? "",
               },
               finish_reason: response.stop_reason === "end_turn" ? "stop" : response.stop_reason,
             },

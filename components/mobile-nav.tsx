@@ -42,13 +42,13 @@ export function MobileNav({ items }: MobileNavProps) {
         </Button>
       </SheetTrigger>
       <SheetContent side="right" className="w-full max-w-xs bg-black/95 border-green-500/30 text-white">
-        <nav className="flex flex-col gap-4 mt-8">
+        <nav className="flex flex-col mt-6 divide-y divide-white/10">
           {items?.map((item) => (
             <button
               key={item.href}
               onClick={() => handleLinkClick(item.href)}
               className={cn(
-                "text-sm font-medium transition-colors hover:text-green-400 text-left",
+                "flex min-h-11 items-center py-2.5 text-sm font-medium leading-tight transition-colors text-left hover:text-green-400",
                 pathname === item.href ? "text-green-400" : "text-gray-200",
               )}
             >

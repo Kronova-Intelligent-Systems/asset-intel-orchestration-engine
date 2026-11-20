@@ -206,7 +206,7 @@ const client = await registerMCPClient({
 
 **3. Authorization URL**
 ```
-https://YOUR_PROJECT_REF.supabase.co/auth/v1/oauth/authorize
+https://api.kronova.io/auth/v1/oauth/authorize
   ?client_id=YOUR_CLIENT_ID
   &redirect_uri=http://localhost:3000/callback
   &response_type=code
@@ -234,11 +234,11 @@ https://YOUR_PROJECT_REF.supabase.co/auth/v1/oauth/authorize
 
 | Endpoint | Description |
 |----------|-------------|
-| `https://<project-ref>.supabase.co/auth/v1/oauth/authorize` | Authorization endpoint |
-| `https://<project-ref>.supabase.co/auth/v1/oauth/token` | Token endpoint |
-| `https://<project-ref>.supabase.co/auth/v1/.well-known/jwks.json` | JWKS endpoint |
-| `https://<project-ref>.supabase.co/.well-known/oauth-authorization-server/auth/v1` | Discovery endpoint |
-| `https://<project-ref>.supabase.co/auth/v1/.well-known/openid-configuration` | OIDC discovery |
+| `https://api.kronova.io/auth/v1/oauth/authorize` | Authorization endpoint |
+| `https://api.kronova.io/auth/v1/oauth/token` | Token endpoint |
+| `https://api.kronova.io/auth/v1/.well-known/jwks.json` | JWKS endpoint |
+| `https://api.kronova.io/.well-known/oauth-authorization-server/auth/v1` | Discovery endpoint |
+| `https://api.kronova.io/auth/v1/.well-known/openid-configuration` | OIDC discovery |
 
 ---
 
@@ -274,7 +274,7 @@ https://YOUR_PROJECT_REF.supabase.co/auth/v1/oauth/authorize
       "command": "mcp-client",
       "args": ["--oauth"],
       "env": {
-        "OAUTH_DISCOVERY_URL": "https://YOUR_PROJECT_REF.supabase.co/.well-known/oauth-authorization-server/auth/v1",
+        "OAUTH_DISCOVERY_URL": "https://api.kronova.io/.well-known/oauth-authorization-server/auth/v1",
         "OAUTH_CLIENT_ID": "your_client_id",
         "OAUTH_REDIRECT_URI": "http://localhost:3000/callback",
         "OAUTH_SCOPES": "read_assets execute_agents"
@@ -388,10 +388,10 @@ curl -X POST https://your-domain.com/api/v1/oauth/token \
 
 # 2. Get authorization code
 # Open in browser:
-https://YOUR_PROJECT_REF.supabase.co/auth/v1/oauth/authorize?client_id=CLIENT_ID&redirect_uri=http://localhost:3000/callback&response_type=code&scope=read_assets&code_challenge=CHALLENGE&code_challenge_method=S256
+https://api.kronova.io/auth/v1/oauth/authorize?client_id=CLIENT_ID&redirect_uri=http://localhost:3000/callback&response_type=code&scope=read_assets&code_challenge=CHALLENGE&code_challenge_method=S256
 
 # 3. Exchange code for token
-curl -X POST https://YOUR_PROJECT_REF.supabase.co/auth/v1/oauth/token \
+curl -X POST https://api.kronova.io/auth/v1/oauth/token \
   -H "Content-Type: application/json" \
   -d '{
     "grant_type": "authorization_code",

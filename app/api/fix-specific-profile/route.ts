@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
   const user_id = searchParams.get("user_id")
 
   try {
-    const supabase = createServerSupabaseClient()
+    const supabase = await createServerSupabaseClient()
 
     // First check if a profile with this public_id already exists
     const { data: existingProfile, error: checkError } = await supabase

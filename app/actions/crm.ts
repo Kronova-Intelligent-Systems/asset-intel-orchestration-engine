@@ -12,7 +12,7 @@ import * as z from "zod"
 
 // Create a new CRM connection
 export async function createCrmConnection(formData: z.infer<typeof createCrmConnectionSchema>) {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
 
   try {
     // Get the current user
@@ -43,7 +43,7 @@ export async function createCrmConnection(formData: z.infer<typeof createCrmConn
   } catch (error) {
     console.error("Error in createCrmConnection:", error)
     if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors[0].message }
+      return { success: false, error: error.issues[0].message }
     }
     return { success: false, error: "An unexpected error occurred" }
   }
@@ -51,7 +51,7 @@ export async function createCrmConnection(formData: z.infer<typeof createCrmConn
 
 // Update an existing CRM connection
 export async function updateCrmConnection(formData: z.infer<typeof updateCrmConnectionSchema>) {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
 
   try {
     // Get the current user
@@ -99,7 +99,7 @@ export async function updateCrmConnection(formData: z.infer<typeof updateCrmConn
   } catch (error) {
     console.error("Error in updateCrmConnection:", error)
     if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors[0].message }
+      return { success: false, error: error.issues[0].message }
     }
     return { success: false, error: "An unexpected error occurred" }
   }
@@ -107,7 +107,7 @@ export async function updateCrmConnection(formData: z.infer<typeof updateCrmConn
 
 // Delete a CRM connection
 export async function deleteCrmConnection(connectionId: string) {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
 
   try {
     // Get the current user
@@ -149,7 +149,7 @@ export async function deleteCrmConnection(connectionId: string) {
 
 // Authenticate with a CRM provider
 export async function authenticateCrmProvider(formData: z.infer<typeof crmAuthSchema>) {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
 
   try {
     // Get the current user
@@ -212,7 +212,7 @@ export async function authenticateCrmProvider(formData: z.infer<typeof crmAuthSc
   } catch (error) {
     console.error("Error in authenticateCrmProvider:", error)
     if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors[0].message }
+      return { success: false, error: error.issues[0].message }
     }
     return { success: false, error: "An unexpected error occurred" }
   }
@@ -220,7 +220,7 @@ export async function authenticateCrmProvider(formData: z.infer<typeof crmAuthSc
 
 // Sync data from a CRM connection
 export async function syncCrmData(connectionId: string) {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
 
   try {
     // Get the current user
@@ -353,7 +353,7 @@ async function authenticateNetSuite(credentials: any) {
 }
 
 async function syncSalesforceData(connection: any) {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
 
   try {
     // In a real implementation, this would make API calls to Salesforce
@@ -447,7 +447,7 @@ async function syncSalesforceData(connection: any) {
 }
 
 async function syncCrmOneData(connection: any) {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
 
   try {
     // In a real implementation, this would make API calls to CrmOne
@@ -541,7 +541,7 @@ async function syncCrmOneData(connection: any) {
 }
 
 async function syncNetSuiteData(connection: any) {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
 
   try {
     // In a real implementation, this would make API calls to NetSuite

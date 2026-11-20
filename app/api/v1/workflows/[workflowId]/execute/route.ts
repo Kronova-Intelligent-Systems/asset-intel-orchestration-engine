@@ -1,7 +1,7 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { type NextRequest, NextResponse, after } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { WorkflowSystem } from "@/lib/workflows/workflow-system"
-import { deliverWebhook } from "@/lib/webhooks/webhook-delivery"
+import { triggerWebhooks } from "@/lib/webhooks/webhook-delivery"
 
 async function validateAPIKeyForExecution(apiKey: string) {
   const supabase = await createServerSupabaseClient()
@@ -33,8 +33,9 @@ async function validateAPIKeyForExecution(apiKey: string) {
   return { valid: true, userId: result.user_id, apiKeyId: result.api_key_id }
 }
 
-export async function POST(request: NextRequest, { params }: { params: { workflowId: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ workflowId: string }> }) {
   const startTime = Date.now()
+  const { workflowId } = await params
 
   try {
     const authHeader = request.headers.get("authorization")
@@ -75,7 +76,7 @@ export async function POST(request: NextRequest, { params }: { params: { workflo
     const { data: workflow, error: workflowError } = await supabase
       .from("ai_workflows")
       .select("*")
-      .eq("id", params.workflowId)
+      .eq("id", workflowId)
       .eq("user_id", userId)
       .maybeSingle()
 
@@ -94,7 +95,7 @@ export async function POST(request: NextRequest, { params }: { params: { workflo
       return NextResponse.json(
         {
           error: "Workflow not found or access denied",
-          message: `No workflow found with ID ${params.workflowId} for your account`,
+          message: `No workflow found with ID ${workflowId} for your account`,
         },
         { status: 404 },
       )
@@ -120,13 +121,13 @@ export async function POST(request: NextRequest, { params }: { params: { workflo
     let errorMessage = null
 
     try {
-      result = await workflowSystem.executeWorkflow(params.workflowId, userId, input)
+      result = await workflowSystem.executeWorkflow(workflowId, userId, input)
     } catch (error) {
       console.error("Workflow execution error:", error)
       runStatus = "failed"
       errorMessage = error instanceof Error ? error.message : "Unknown error"
       result = {
-        workflow_id: params.workflowId,
+        workflow_id: workflowId,
         status: "failed",
         error: errorMessage,
         execution_time: Date.now() - startTime,
@@ -138,7 +139,7 @@ export async function POST(request: NextRequest, { params }: { params: { workflo
     const { data: executionRecord } = await supabase
       .from("ai_workflow_runs")
       .insert({
-        workflow_id: params.workflowId,
+        workflow_id: workflowId,
         user_id: userId,
         status: runStatus,
         start_time: new Date(startTime).toISOString(),
@@ -162,73 +163,35 @@ export async function POST(request: NextRequest, { params }: { params: { workflo
         last_executed_at: new Date().toISOString(),
         execution_count: (workflow.execution_count || 0) + 1,
       })
-      .eq("id", params.workflowId)
+      .eq("id", workflowId)
 
     const webhookEvent = runStatus === "completed" ? "workflow.execution.completed" : "workflow.execution.failed"
 
-    const webhookDeliveryPromises = []
-
-    if (webhookUrl) {
-      webhookDeliveryPromises.push(
-        deliverWebhook({
-          url: webhookUrl,
-          event: webhookEvent,
-          payload: {
-            workflowId: params.workflowId,
-            workflowName: workflow.name,
-            executionId: executionRecord?.id,
-            status: runStatus,
-            result: result,
-            error: errorMessage,
-            executionTime: executionTime,
-            timestamp: new Date().toISOString(),
-          },
-          userId,
-        }),
-      )
-    }
-
-    // Trigger registered webhooks for this event
-    const { data: webhooks } = await supabase
-      .from("webhooks")
-      .select("*")
-      .eq("user_id", userId)
-      .eq("is_active", true)
-      .contains("events", [webhookEvent])
-
-    if (webhooks && webhooks.length > 0) {
-      for (const webhook of webhooks) {
-        webhookDeliveryPromises.push(
-          deliverWebhook({
-            url: webhook.url,
-            event: webhookEvent,
-            payload: {
-              workflowId: params.workflowId,
-              workflowName: workflow.name,
-              executionId: executionRecord?.id,
-              status: runStatus,
-              result: result,
-              error: errorMessage,
-              executionTime: executionTime,
-              timestamp: new Date().toISOString(),
-            },
-            userId,
-            webhookId: webhook.id,
-            secret: webhook.secret,
-          }),
-        )
-      }
-    }
-
-    // Don't wait for webhooks to complete
-    Promise.allSettled(webhookDeliveryPromises).catch(console.error)
+    // Delivered after the response is sent; `after` keeps the function alive for retries.
+    after(() =>
+      triggerWebhooks({
+        userId,
+        event: webhookEvent,
+        webhookUrl,
+        payload: {
+          workflowId,
+          workflowName: workflow.name,
+          executionId: executionRecord?.id,
+          status: runStatus,
+          result: result,
+          error: errorMessage,
+          executionTime: executionTime,
+          timestamp: new Date().toISOString(),
+        },
+      }),
+    )
 
     if (runStatus === "failed") {
       return NextResponse.json(
         {
           success: false,
           executionId: executionRecord?.id,
-          workflowId: params.workflowId,
+          workflowId: workflowId,
           workflowName: workflow.name,
           status: runStatus,
           error: errorMessage,
@@ -242,7 +205,7 @@ export async function POST(request: NextRequest, { params }: { params: { workflo
     return NextResponse.json({
       success: true,
       executionId: executionRecord?.id,
-      workflowId: params.workflowId,
+      workflowId: workflowId,
       workflowName: workflow.name,
       status: runStatus,
       result: result,

@@ -29,7 +29,7 @@ export async function requestPasswordReset(formData: FormData) {
   } catch (error) {
     console.error("Error requesting password reset:", error)
     if (error instanceof z.ZodError) {
-      return { success: false, message: error.errors[0].message }
+      return { success: false, message: error.issues[0].message }
     }
     return {
       success: false,

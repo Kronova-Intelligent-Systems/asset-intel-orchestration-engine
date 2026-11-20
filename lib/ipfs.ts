@@ -36,7 +36,7 @@ export async function uploadToIPFS(file: Buffer, fileName: string): Promise<stri
 }
 
 async function uploadToSupabase(file: Buffer, fileName: string): Promise<string> {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
 
   const { data, error } = await supabase.storage.from("nft-assets").upload(`assets/${fileName}`, file, {
     contentType: "application/octet-stream",

@@ -273,60 +273,103 @@ export interface OAuthTokenResponse {
   scope: string
 }
 
-// A2A Protocol Types (Agent2Agent Interoperability)
-export interface A2AAgentCard {
-  id: string
-  agent_id: string
-  name: string
-  description: string
-  capabilities: string[]
-  supported_protocols: string[]
-  endpoint_url: string
-  authentication_method: "api_key" | "oauth2" | "mutual_tls"
+// A2A Protocol Types (Agent2Agent Interoperability) - served at /api/a2a
+export const A2A_PROTOCOL_VERSION = "1.0"
+
+export type A2ATaskState = "submitted" | "working" | "input-required" | "completed" | "failed" | "canceled" | "rejected"
+
+export type A2APart =
+  | { type: "text"; text: string; metadata?: Record<string, unknown> }
+  | {
+      type: "file"
+      file: { name?: string; mimeType: string; bytes?: string; uri?: string }
+      metadata?: Record<string, unknown>
+    }
+  | { type: "data"; data: Record<string, unknown>; metadata?: Record<string, unknown> }
+
+export interface A2AMessage {
+  messageId: string
+  role: "user" | "agent"
+  parts: A2APart[]
+  contextId?: string
+  referenceTaskIds?: string[]
   metadata?: Record<string, unknown>
-  created_at: string
-  updated_at: string
+}
+
+export interface A2ATaskStatus {
+  state: A2ATaskState
+  timestamp?: string
+  message?: A2AMessage
+}
+
+export interface A2AArtifact {
+  artifactId: string
+  name?: string
+  description?: string
+  parts: A2APart[]
+  metadata?: Record<string, unknown>
 }
 
 export interface A2ATask {
   id: string
-  task_type: string
-  task_description: string
-  requester_agent_id: string
-  responder_agent_id?: string
-  status: "pending" | "accepted" | "in_progress" | "completed" | "failed" | "cancelled"
-  priority: "low" | "normal" | "high" | "urgent"
-  input_data?: Record<string, unknown>
-  result_data?: Record<string, unknown>
-  started_at?: string
-  completed_at?: string
-  created_at: string
+  contextId: string
+  status: A2ATaskStatus
+  history?: A2AMessage[]
+  artifacts?: A2AArtifact[]
+  metadata?: Record<string, unknown>
 }
 
-export interface A2AMessage {
-  id: string
-  task_id: string
-  sender_agent_id: string
-  receiver_agent_id: string
-  message_type: "request" | "response" | "notification" | "error"
-  content: Record<string, unknown>
-  protocol_version: string
-  created_at: string
+export interface A2AAgentCard {
+  agentId: string
+  name: string
+  description?: string
+  url: string
+  protocolVersions: string[]
+  capabilities: {
+    streaming?: boolean
+    pushNotifications?: boolean
+    extendedAgentCard?: boolean
+    stateTransitionHistory?: boolean
+  }
+  skills?: Array<{
+    id: string
+    name: string
+    description?: string
+    inputModes?: string[]
+    outputModes?: string[]
+    tags?: string[]
+    examples?: string[]
+  }>
+  defaultInputModes?: string[]
+  defaultOutputModes?: string[]
+  provider?: { organization?: string; url?: string }
+  documentationUrl?: string
 }
 
-export interface CreateA2ATaskInput {
-  task_type: string
-  task_description: string
-  responder_agent_id?: string
-  priority?: A2ATask["priority"]
-  input_data?: Record<string, unknown>
+export interface A2ASendMessageInput {
+  message: A2AMessage
+  configuration?: {
+    acceptedOutputModes?: string[]
+    historyLength?: number
+    blocking?: boolean
+  }
+  metadata?: Record<string, unknown>
 }
 
-export interface SendA2AMessageInput {
-  task_id: string
-  receiver_agent_id: string
-  message_type: A2AMessage["message_type"]
-  content: Record<string, unknown>
+export interface A2AListTasksInput {
+  contextId?: string
+  status?: A2ATaskState
+  pageSize?: number
+  pageToken?: string
+  historyLength?: number
+  includeArtifacts?: boolean
+}
+
+export interface A2AListTasksResponse {
+  tasks: A2ATask[]
+  nextPageToken: string
+  pageSize: number
+  totalSize: number
 }
 
 // =============================================================================
@@ -351,7 +394,7 @@ export class KronovaSDKBase {
   constructor(config: KronovaConfig) {
     this.config = {
       apiKey: config.apiKey,
-      baseUrl: config.baseUrl || "https://api.kronova.io/v1",
+      baseUrl: config.baseUrl || "https://app.kronova.io/api/v1",
       timeout: config.timeout || 30000,
       retries: config.retries || 3,
       debug: config.debug || false,
@@ -380,9 +423,10 @@ export class KronovaSDKBase {
       body?: unknown
       params?: Record<string, string | number | boolean | undefined>
       headers?: Record<string, string>
+      baseUrl?: string
     } = {},
   ): Promise<APIResponse<T>> {
-    const url = new URL(`${this.config.baseUrl}${path}`)
+    const url = new URL(`${options.baseUrl ?? this.config.baseUrl}${path}`)
 
     // Add query parameters
     if (options.params) {
@@ -844,112 +888,66 @@ class OAuthClient_SDK {
 class A2AClient {
   constructor(private sdk: KronovaSDKBase) {}
 
-  // Agent Card Management
-  async listAgentCards(params?: PaginationParams): Promise<APIResponse<A2AAgentCard[]>> {
-    return this.sdk.request("GET", "/a2a/agent-cards", { params })
+  /**
+   * The A2A endpoint lives at /api/a2a on the app origin, outside the versioned /api/v1 surface.
+   */
+  private call<T>(
+    method: "GET" | "POST",
+    options: { params?: Record<string, string | number | boolean | undefined>; body?: unknown } = {},
+  ): Promise<T> {
+    const baseUrl = `${new URL(this.sdk.getConfig().baseUrl).origin}/api/a2a`
+    return this.sdk.request<unknown>(method, "", {
+      ...options,
+      baseUrl,
+      headers: { "A2A-Version": A2A_PROTOCOL_VERSION },
+    }) as unknown as Promise<T>
   }
 
-  async getAgentCard(id: string): Promise<APIResponse<A2AAgentCard>> {
-    return this.sdk.request("GET", `/a2a/agent-cards/${id}`)
+  /** List public Agent Cards. Does not require authentication. */
+  async discover(): Promise<{ agents: A2AAgentCard[]; protocolVersion: string }> {
+    return this.call("GET", { params: { action: "discover" } })
   }
 
-  async createAgentCard(input: {
-    agent_id: string
-    name: string
-    description: string
-    capabilities: string[]
-    endpoint_url: string
-    authentication_method: A2AAgentCard["authentication_method"]
-    metadata?: Record<string, unknown>
-  }): Promise<APIResponse<A2AAgentCard>> {
-    return this.sdk.request("POST", "/a2a/agent-cards", { body: input })
+  /** List Agent Cards owned by the API key's user (raw database rows). Requires `read:agents`. */
+  async listAgentCards(): Promise<{ cards: Record<string, unknown>[] }> {
+    return this.call("GET", { params: { action: "list-cards" } })
   }
 
-  async updateAgentCard(
-    id: string,
-    input: Partial<{
-      name: string
-      description: string
-      capabilities: string[]
-      endpoint_url: string
-      metadata: Record<string, unknown>
-    }>,
-  ): Promise<APIResponse<A2AAgentCard>> {
-    return this.sdk.request("PATCH", `/a2a/agent-cards/${id}`, { body: input })
+  async getAgentCard(agentId: string): Promise<A2AAgentCard> {
+    return this.call("GET", { params: { agentId } })
   }
 
-  async deleteAgentCard(id: string): Promise<APIResponse<{ deleted: boolean }>> {
-    return this.sdk.request("DELETE", `/a2a/agent-cards/${id}`)
+  /** Requires `write:agents`. The server assigns the `agentId`. */
+  async createAgentCard(card: Omit<A2AAgentCard, "agentId">): Promise<A2AAgentCard> {
+    return this.call("POST", { body: { action: "agentCard/create", card } })
   }
 
-  // Task Management
-  async listTasks(
-    params?: PaginationParams & { status?: A2ATask["status"] },
-  ): Promise<APIResponse<A2ATask[]>> {
-    return this.sdk.request("GET", "/a2a/tasks", { params })
+  async sendMessage(input: A2ASendMessageInput): Promise<A2ATask | A2AMessage> {
+    return this.call("POST", { body: { action: "message/send", ...input } })
   }
 
-  async getTask(id: string): Promise<APIResponse<A2ATask>> {
-    return this.sdk.request("GET", `/a2a/tasks/${id}`)
+  async getTask(taskId: string, historyLength?: number): Promise<A2ATask> {
+    return this.call("GET", { params: { taskId, historyLength } })
   }
 
-  async createTask(input: CreateA2ATaskInput): Promise<APIResponse<A2ATask>> {
-    return this.sdk.request("POST", "/a2a/tasks", { body: input })
+  async listTasks(params: A2AListTasksInput = {}): Promise<A2AListTasksResponse> {
+    return this.call("GET", { params: { action: "list-tasks", ...params } })
   }
 
-  async acceptTask(id: string, agentId: string): Promise<APIResponse<A2ATask>> {
-    return this.sdk.request("POST", `/a2a/tasks/${id}/accept`, {
-      body: { agent_id: agentId },
-    })
+  async cancelTask(taskId: string): Promise<A2ATask> {
+    return this.call("POST", { body: { action: "tasks/cancel", taskId } })
   }
 
-  async completeTask(
-    id: string,
-    result: Record<string, unknown>,
-  ): Promise<APIResponse<A2ATask>> {
-    return this.sdk.request("POST", `/a2a/tasks/${id}/complete`, {
-      body: { result_data: result },
-    })
+  async updateTaskStatus(taskId: string, status: A2ATaskStatus): Promise<A2ATask> {
+    return this.call("POST", { body: { action: "tasks/updateStatus", taskId, status } })
   }
 
-  async cancelTask(id: string): Promise<APIResponse<A2ATask>> {
-    return this.sdk.request("POST", `/a2a/tasks/${id}/cancel`)
+  async addArtifact(taskId: string, artifact: A2AArtifact): Promise<A2AArtifact> {
+    return this.call("POST", { body: { action: "tasks/addArtifact", taskId, artifact } })
   }
 
-  // Message Management
-  async listMessages(
-    params?: PaginationParams & { task_id?: string },
-  ): Promise<APIResponse<A2AMessage[]>> {
-    return this.sdk.request("GET", "/a2a/messages", { params })
-  }
-
-  async getMessage(id: string): Promise<APIResponse<A2AMessage>> {
-    return this.sdk.request("GET", `/a2a/messages/${id}`)
-  }
-
-  async sendMessage(input: SendA2AMessageInput): Promise<APIResponse<A2AMessage>> {
-    return this.sdk.request("POST", "/a2a/messages", { body: input })
-  }
-
-  // Discovery
-  async discoverAgents(params?: {
-    capabilities?: string[]
-    protocol_version?: string
-  }): Promise<APIResponse<A2AAgentCard[]>> {
-    const flatParams: Record<string, string | number | boolean | undefined> = {
-      protocol_version: params?.protocol_version,
-      ...(params?.capabilities ? { capabilities: params.capabilities.join(",") } : {}),
-    }
-    return this.sdk.request("GET", "/a2a/discover", { params: flatParams })
-  }
-
-  // Interoperability with external A2A networks
-  async connectToExternalAgent(params: {
-    external_agent_url: string
-    auth_token?: string
-    trust_level?: "trusted" | "verified" | "unverified"
-  }): Promise<APIResponse<{ connection_id: string; agent_card: A2AAgentCard }>> {
-    return this.sdk.request("POST", "/a2a/connect", { body: params })
+  async sendViaAetherNet(targetAddress: string, request: A2ASendMessageInput): Promise<unknown> {
+    return this.call("POST", { body: { action: "aethernet/send", targetAddress, request } })
   }
 }
 

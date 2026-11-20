@@ -12,12 +12,30 @@ const relevantEvents = new Set([
   "customer.subscription.deleted",
   // Fired each time a billing period closes — good trigger to backfill any unsent meter events
   "invoice.payment_succeeded",
+  // Newer API versions favor invoice.paid; the production endpoint subscribes to this one
+  "invoice.paid",
 ])
 
 const toDateTime = (secs: number) => {
   const t = new Date("1970-01-01T00:00:00Z")
   t.setSeconds(secs)
   return t
+}
+
+// Stripe API 2025-03-31 (basil) moved current_period_start/end from the Subscription to its items.
+// The client in lib/stripe.ts is pinned to 2024-06-20, which still returns them at the top level,
+// so read the item first and fall back to the legacy location.
+type LegacyPeriod = { current_period_start?: number; current_period_end?: number }
+
+const getBillingPeriod = (subscription: Stripe.Subscription) => {
+  const item = subscription.items.data[0]
+  const legacy = subscription as unknown as LegacyPeriod
+  const start = item?.current_period_start ?? legacy.current_period_start
+  const end = item?.current_period_end ?? legacy.current_period_end
+  if (start === undefined || end === undefined) {
+    throw new Error(`Subscription ${subscription.id} has no billing period on item or subscription`)
+  }
+  return { start, end }
 }
 
 const manageSubscriptionStatusChange = async (subscriptionId: string, customerId: string, createAction = false) => {
@@ -40,6 +58,8 @@ const manageSubscriptionStatusChange = async (subscriptionId: string, customerId
     expand: ["default_payment_method"],
   })
 
+  const { start: periodStart, end: periodEnd } = getBillingPeriod(subscription)
+
   const subscriptionData = {
     id: subscription.id,
     user_id: profile.id,
@@ -50,8 +70,8 @@ const manageSubscriptionStatusChange = async (subscriptionId: string, customerId
     cancel_at_period_end: subscription.cancel_at_period_end,
     cancel_at: subscription.cancel_at ? toDateTime(subscription.cancel_at).toISOString() : null,
     canceled_at: subscription.canceled_at ? toDateTime(subscription.canceled_at).toISOString() : null,
-    current_period_start: toDateTime(subscription.current_period_start).toISOString(),
-    current_period_end: toDateTime(subscription.current_period_end).toISOString(),
+    current_period_start: toDateTime(periodStart).toISOString(),
+    current_period_end: toDateTime(periodEnd).toISOString(),
     ended_at: subscription.ended_at ? toDateTime(subscription.ended_at).toISOString() : null,
     trial_start: subscription.trial_start ? toDateTime(subscription.trial_start).toISOString() : null,
     trial_end: subscription.trial_end ? toDateTime(subscription.trial_end).toISOString() : null,
@@ -63,7 +83,7 @@ const manageSubscriptionStatusChange = async (subscriptionId: string, customerId
 
 export async function POST(req: Request) {
   const body = await req.text()
-  const sig = headers().get("Stripe-Signature") as string
+  const sig = (await headers()).get("Stripe-Signature")
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
   let event: Stripe.Event
 
@@ -75,7 +95,7 @@ export async function POST(req: Request) {
     event = stripe.webhooks.constructEvent(body, sig, webhookSecret)
   } catch (err: any) {
     console.error(`❌ Webhook signature verification failed: ${err.message}`)
-    return new NextResponse(`Webhook Error: ${err.message}`, { status: 400 })
+    return new NextResponse("Webhook signature verification failed", { status: 400 })
   }
 
   if (relevantEvents.has(event.type)) {
@@ -97,12 +117,13 @@ export async function POST(req: Request) {
           await manageSubscriptionStatusChange(subscription.id, subscription.customer as string)
           break
         }
-        case "invoice.payment_succeeded": {
+        case "invoice.payment_succeeded":
+        case "invoice.paid": {
           // On each successful invoice payment (billing period close), backfill
           // any meter events that failed to send during the period.
           const result = await backfillUnsentMeterEvents()
           console.log(
-            `[StripeMeter] Backfill on invoice.payment_succeeded: processed=${result.processed} succeeded=${result.succeeded} failed=${result.failed}`,
+            `[StripeMeter] Backfill on ${event.type}: processed=${result.processed} succeeded=${result.succeeded} failed=${result.failed}`,
           )
           break
         }

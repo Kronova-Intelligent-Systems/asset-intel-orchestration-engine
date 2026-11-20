@@ -1,7 +1,7 @@
 import type { createServerSupabaseClient } from "@/lib/supabase/server"
 import type { AIModel, AIAgent, AIWorkflow, Asset, DataEmbedding, SystemAIAgent } from "@/lib/schemas/ai-suite"
 
-export const getAIModels = (supabase: ReturnType<typeof createServerSupabaseClient>) => ({
+export const getAIModels = (supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>) => ({
   queryKey: ["ai-models"],
   queryFn: async () => {
     const { data, error } = await supabase
@@ -20,7 +20,7 @@ export const getAIModels = (supabase: ReturnType<typeof createServerSupabaseClie
 // ============================================================================
 
 export const getIoTFleetDevices = (
-  supabase: ReturnType<typeof createServerSupabaseClient>,
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   userId: string,
 ) => ({
   queryKey: ["iot-fleet-devices"],
@@ -37,7 +37,7 @@ export const getIoTFleetDevices = (
 })
 
 export const getIoTFleetTelemetry = (
-  supabase: ReturnType<typeof createServerSupabaseClient>,
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   deviceId: string,
   limit = 100,
 ) => ({
@@ -56,7 +56,7 @@ export const getIoTFleetTelemetry = (
 })
 
 export const getIoTFleetAlerts = (
-  supabase: ReturnType<typeof createServerSupabaseClient>,
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   userId: string,
   unresolvedOnly = false,
 ) => ({
@@ -87,7 +87,7 @@ export const getIoTFleetAlerts = (
 })
 
 export const getIoTFleetDriverPerformance = (
-  supabase: ReturnType<typeof createServerSupabaseClient>,
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   userId: string,
 ) => ({
   queryKey: ["iot-fleet-driver-performance"],
@@ -105,7 +105,7 @@ export const getIoTFleetDriverPerformance = (
 })
 
 export const getIoTFleetMetrics = (
-  supabase: ReturnType<typeof createServerSupabaseClient>,
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   userId: string,
 ) => ({
   queryKey: ["iot-fleet-metrics"],
@@ -146,7 +146,7 @@ export const getIoTFleetMetrics = (
 // ============================================================================
 
 export const getROIAssessments = (
-  supabase: ReturnType<typeof createServerSupabaseClient>,
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   userId: string,
 ) => ({
   queryKey: ["roi-assessments"],
@@ -163,7 +163,7 @@ export const getROIAssessments = (
 })
 
 export const getROIBenchmarks = (
-  supabase: ReturnType<typeof createServerSupabaseClient>,
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   industry?: string,
 ) => ({
   queryKey: ["roi-benchmarks", industry],
@@ -185,7 +185,7 @@ export const getROIBenchmarks = (
 })
 
 export const getROIHistoricalTrends = (
-  supabase: ReturnType<typeof createServerSupabaseClient>,
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   assessmentId: string,
 ) => ({
   queryKey: ["roi-historical-trends", assessmentId],
@@ -202,7 +202,7 @@ export const getROIHistoricalTrends = (
 })
 
 
-export const getAIAgents = (supabase: ReturnType<typeof createServerSupabaseClient>, userId: string) => ({
+export const getAIAgents = (supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>, userId: string) => ({
   queryKey: ["ai-agents"],
   queryFn: async () => {
     const { data, error } = await supabase
@@ -225,7 +225,7 @@ export const getAIAgents = (supabase: ReturnType<typeof createServerSupabaseClie
   },
 })
 
-export const getAIWorkflows = (supabase: ReturnType<typeof createServerSupabaseClient>, userId: string) => ({
+export const getAIWorkflows = (supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>, userId: string) => ({
   queryKey: ["ai-workflows"],
   queryFn: async () => {
     const { data, error } = await supabase
@@ -240,7 +240,7 @@ export const getAIWorkflows = (supabase: ReturnType<typeof createServerSupabaseC
   },
 })
 
-export const getAssets = (supabase: ReturnType<typeof createServerSupabaseClient>, userId: string) => ({
+export const getAssets = (supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>, userId: string) => ({
   queryKey: ["assets"],
   queryFn: async () => {
     const { data, error } = await supabase
@@ -254,7 +254,7 @@ export const getAssets = (supabase: ReturnType<typeof createServerSupabaseClient
   },
 })
 
-export const getDataEmbeddings = (supabase: ReturnType<typeof createServerSupabaseClient>, userId: string) => ({
+export const getDataEmbeddings = (supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>, userId: string) => ({
   queryKey: ["data-embeddings"],
   queryFn: async () => {
     const { data, error } = await supabase
@@ -269,7 +269,7 @@ export const getDataEmbeddings = (supabase: ReturnType<typeof createServerSupaba
   },
 })
 
-export const getSystemAIAgents = (supabase: ReturnType<typeof createServerSupabaseClient>) => ({
+export const getSystemAIAgents = (supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>) => ({
   queryKey: ["system-ai-agents"],
   queryFn: async () => {
     const { data, error } = await supabase
@@ -283,7 +283,7 @@ export const getSystemAIAgents = (supabase: ReturnType<typeof createServerSupaba
   },
 })
 
-export const getDashboardMetrics = (supabase: ReturnType<typeof createServerSupabaseClient>, userId: string) => ({
+export const getDashboardMetrics = (supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>, userId: string) => ({
   queryKey: ["dashboard-metrics"],
   queryFn: async () => {
     const [
@@ -401,7 +401,7 @@ export const getDashboardMetrics = (supabase: ReturnType<typeof createServerSupa
 })
 
 export const getAssetInsights = (
-  supabase: ReturnType<typeof createServerSupabaseClient>,
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   userId: string,
   assetId?: string,
 ) => ({
@@ -425,7 +425,7 @@ export const getAssetInsights = (
   },
 })
 
-export const getIoTSensorData = (supabase: ReturnType<typeof createServerSupabaseClient>, userId: string) => ({
+export const getIoTSensorData = (supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>, userId: string) => ({
   queryKey: ["iot-sensor-data"],
   queryFn: async () => {
     const { data: userAssets, error: assetsError } = await supabase
@@ -459,7 +459,7 @@ export const getIoTSensorData = (supabase: ReturnType<typeof createServerSupabas
 })
 
 export const getAIWorkflowRuns = (
-  supabase: ReturnType<typeof createServerSupabaseClient>,
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   userId: string,
   limit = 100,
 ) => ({
@@ -487,7 +487,7 @@ export const getAIWorkflowRuns = (
 })
 
 export const getAIRequestLogs = (
-  supabase: ReturnType<typeof createServerSupabaseClient>,
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   userId: string,
   days = 30,
 ) => ({
@@ -508,7 +508,7 @@ export const getAIRequestLogs = (
   },
 })
 
-export const getSystemWorkflowTemplates = (supabase: ReturnType<typeof createServerSupabaseClient>) => ({
+export const getSystemWorkflowTemplates = (supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>) => ({
   queryKey: ["system-workflow-templates"],
   queryFn: async () => {
     const { data, error } = await supabase
@@ -523,7 +523,7 @@ export const getSystemWorkflowTemplates = (supabase: ReturnType<typeof createSer
   },
 })
 
-export const getAssetAnalytics = (supabase: ReturnType<typeof createServerSupabaseClient>, userId: string) => ({
+export const getAssetAnalytics = (supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>, userId: string) => ({
   queryKey: ["asset-analytics"],
   queryFn: async () => {
     try {
@@ -542,7 +542,7 @@ export const getAssetAnalytics = (supabase: ReturnType<typeof createServerSupaba
 })
 
 export const getAssetIntelligenceLearning = (
-  supabase: ReturnType<typeof createServerSupabaseClient>,
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   userId: string,
   limit = 100,
 ) => ({
@@ -561,7 +561,7 @@ export const getAssetIntelligenceLearning = (
 })
 
 export const getAIRequestVolumeData = (
-  supabase: ReturnType<typeof createServerSupabaseClient>,
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   userId: string,
   days = 30,
 ) => ({
@@ -611,7 +611,7 @@ export const getAIRequestVolumeData = (
 // ============================================================================
 
 export const getAetherNetConnections = (
-  supabase: ReturnType<typeof createServerSupabaseClient>,
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   userId: string,
 ) => ({
   queryKey: ["aethernet-connections"],
@@ -628,7 +628,7 @@ export const getAetherNetConnections = (
 })
 
 export const getAetherNetMessages = (
-  supabase: ReturnType<typeof createServerSupabaseClient>,
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   userId: string,
   limit = 100,
 ) => ({
@@ -653,7 +653,7 @@ export const getAetherNetMessages = (
 })
 
 export const getAetherNetDeliveryLogs = (
-  supabase: ReturnType<typeof createServerSupabaseClient>,
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   userId: string,
   days = 7,
 ) => ({
@@ -685,7 +685,7 @@ export const getAetherNetDeliveryLogs = (
 })
 
 export const getAetherNetMetrics = (
-  supabase: ReturnType<typeof createServerSupabaseClient>,
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   userId: string,
 ) => ({
   queryKey: ["aethernet-metrics"],
@@ -720,7 +720,7 @@ export const getAetherNetMetrics = (
 // ============================================================================
 
 export const getTokenizedAssets = (
-  supabase: ReturnType<typeof createServerSupabaseClient>,
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   userId: string,
 ) => ({
   queryKey: ["tokenized-assets"],
@@ -745,7 +745,7 @@ export const getTokenizedAssets = (
 })
 
 export const getFractionalizationPools = (
-  supabase: ReturnType<typeof createServerSupabaseClient>,
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   userId: string,
 ) => ({
   queryKey: ["fractionalization-pools"],
@@ -769,7 +769,7 @@ export const getFractionalizationPools = (
 })
 
 export const getTokenTransactions = (
-  supabase: ReturnType<typeof createServerSupabaseClient>,
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   userId: string,
   limit = 100,
 ) => ({
@@ -794,7 +794,7 @@ export const getTokenTransactions = (
 })
 
 export const getTokenizationMetrics = (
-  supabase: ReturnType<typeof createServerSupabaseClient>,
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   userId: string,
 ) => ({
   queryKey: ["tokenization-metrics"],
@@ -829,7 +829,7 @@ export const getTokenizationMetrics = (
 // ============================================================================
 
 export const getVoiceExecutionLogs = (
-  supabase: ReturnType<typeof createServerSupabaseClient>,
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   userId: string,
   limit = 100,
 ) => ({
@@ -855,7 +855,7 @@ export const getVoiceExecutionLogs = (
 })
 
 export const getVoiceContextSnapshots = (
-  supabase: ReturnType<typeof createServerSupabaseClient>,
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   userId: string,
   limit = 50,
 ) => ({
@@ -874,7 +874,7 @@ export const getVoiceContextSnapshots = (
 })
 
 export const getVoiceAgentMetrics = (
-  supabase: ReturnType<typeof createServerSupabaseClient>,
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   userId: string,
   days = 30,
 ) => ({
@@ -914,7 +914,7 @@ export const getVoiceAgentMetrics = (
 // ============================================================================
 
 export const getA2AAgentCards = (
-  supabase: ReturnType<typeof createServerSupabaseClient>,
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   userId: string,
 ) => ({
   queryKey: ["a2a-agent-cards"],
@@ -931,7 +931,7 @@ export const getA2AAgentCards = (
 })
 
 export const getA2ATasks = (
-  supabase: ReturnType<typeof createServerSupabaseClient>,
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   userId: string,
   limit = 100,
 ) => ({
@@ -957,7 +957,7 @@ export const getA2ATasks = (
 })
 
 export const getA2AMessages = (
-  supabase: ReturnType<typeof createServerSupabaseClient>,
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   userId: string,
   taskId?: string,
   limit = 100,

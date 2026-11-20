@@ -10,11 +10,11 @@ Your Supabase project exposes the following OAuth endpoints:
 
 | Endpoint | URL |
 |----------|-----|
-| **Authorization** | `https://<project-ref>.supabase.co/auth/v1/oauth/authorize` |
-| **Token** | `https://<project-ref>.supabase.co/auth/v1/oauth/token` |
-| **JWKS** | `https://<project-ref>.supabase.co/auth/v1/.well-known/jwks.json` |
-| **Discovery** | `https://<project-ref>.supabase.co/.well-known/oauth-authorization-server/auth/v1` |
-| **OIDC Discovery** | `https://<project-ref>.supabase.co/auth/v1/.well-known/openid-configuration` |
+| **Authorization** | `https://api.kronova.io/auth/v1/oauth/authorize` |
+| **Token** | `https://api.kronova.io/auth/v1/oauth/token` |
+| **JWKS** | `https://api.kronova.io/auth/v1/.well-known/jwks.json` |
+| **Discovery** | `https://api.kronova.io/.well-known/oauth-authorization-server/auth/v1` |
+| **OIDC Discovery** | `https://api.kronova.io/auth/v1/.well-known/openid-configuration` |
 
 ## Configuration Steps
 
@@ -60,7 +60,7 @@ Use the Resend-It UI at `/ai-suite/settings/oauth` to register OAuth clients, or
 
 1. **Initiate Authorization**
    ```
-   GET https://<project-ref>.supabase.co/auth/v1/oauth/authorize
+   GET https://api.kronova.io/auth/v1/oauth/authorize
    ?client_id=YOUR_CLIENT_ID
    &redirect_uri=YOUR_REDIRECT_URI
    &response_type=code
@@ -81,7 +81,7 @@ Use the Resend-It UI at `/ai-suite/settings/oauth` to register OAuth clients, or
 
 4. **Access Token Exchange**
    ```
-   POST https://<project-ref>.supabase.co/auth/v1/oauth/token
+   POST https://api.kronova.io/auth/v1/oauth/token
    {
      "grant_type": "authorization_code",
      "client_id": "YOUR_CLIENT_ID",
@@ -143,7 +143,7 @@ For AI agents and MCP clients, see the dedicated [MCP Authentication Guide](./MC
 1. Enable OAuth 2.1 in Supabase dashboard
 2. Set authorization path to `/oauth/consent`
 3. Switch JWT signing to RS256/ES256
-4. MCP clients will auto-discover from: `https://<project-ref>.supabase.co/.well-known/oauth-authorization-server/auth/v1`
+4. MCP clients will auto-discover from: `https://api.kronova.io/.well-known/oauth-authorization-server/auth/v1`
 
 ## Troubleshooting
 

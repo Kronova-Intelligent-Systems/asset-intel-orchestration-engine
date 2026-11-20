@@ -21,7 +21,7 @@ const headers = {
 };
 
 // API Key as Query Parameter (alternative)
-fetch('https://api.kronova.io/v1/profile?api_key=YOUR_API_KEY')
+fetch('https://app.kronova.io/api/v1/assets?api_key=YOUR_API_KEY')
   .then(response => response.json())
   .then(data => console.log(data));`
 
@@ -50,7 +50,7 @@ fetch('https://api.kronova.io/v1/profile?api_key=YOUR_API_KEY')
             <h5 className="font-medium">Query Parameter</h5>
             <p className="text-sm mt-1">Include your API key as a query parameter in your requests.</p>
             <pre className="bg-black text-white p-2 rounded-md text-sm mt-2">
-              https://api.kronova.io/v1/profile?api_key=YOUR_API_KEY
+              https://app.kronova.io/api/v1/assets?api_key=YOUR_API_KEY
             </pre>
           </div>
         </div>

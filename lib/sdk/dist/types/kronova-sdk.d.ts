@@ -231,55 +231,105 @@ export interface OAuthTokenResponse {
     refresh_token?: string;
     scope: string;
 }
-export interface A2AAgentCard {
-    id: string;
-    agent_id: string;
-    name: string;
-    description: string;
-    capabilities: string[];
-    supported_protocols: string[];
-    endpoint_url: string;
-    authentication_method: "api_key" | "oauth2" | "mutual_tls";
+export declare const A2A_PROTOCOL_VERSION = "1.0";
+export type A2ATaskState = "submitted" | "working" | "input-required" | "completed" | "failed" | "canceled" | "rejected";
+export type A2APart = {
+    type: "text";
+    text: string;
     metadata?: Record<string, unknown>;
-    created_at: string;
-    updated_at: string;
+} | {
+    type: "file";
+    file: {
+        name?: string;
+        mimeType: string;
+        bytes?: string;
+        uri?: string;
+    };
+    metadata?: Record<string, unknown>;
+} | {
+    type: "data";
+    data: Record<string, unknown>;
+    metadata?: Record<string, unknown>;
+};
+export interface A2AMessage {
+    messageId: string;
+    role: "user" | "agent";
+    parts: A2APart[];
+    contextId?: string;
+    referenceTaskIds?: string[];
+    metadata?: Record<string, unknown>;
+}
+export interface A2ATaskStatus {
+    state: A2ATaskState;
+    timestamp?: string;
+    message?: A2AMessage;
+}
+export interface A2AArtifact {
+    artifactId: string;
+    name?: string;
+    description?: string;
+    parts: A2APart[];
+    metadata?: Record<string, unknown>;
 }
 export interface A2ATask {
     id: string;
-    task_type: string;
-    task_description: string;
-    requester_agent_id: string;
-    responder_agent_id?: string;
-    status: "pending" | "accepted" | "in_progress" | "completed" | "failed" | "cancelled";
-    priority: "low" | "normal" | "high" | "urgent";
-    input_data?: Record<string, unknown>;
-    result_data?: Record<string, unknown>;
-    started_at?: string;
-    completed_at?: string;
-    created_at: string;
+    contextId: string;
+    status: A2ATaskStatus;
+    history?: A2AMessage[];
+    artifacts?: A2AArtifact[];
+    metadata?: Record<string, unknown>;
 }
-export interface A2AMessage {
-    id: string;
-    task_id: string;
-    sender_agent_id: string;
-    receiver_agent_id: string;
-    message_type: "request" | "response" | "notification" | "error";
-    content: Record<string, unknown>;
-    protocol_version: string;
-    created_at: string;
+export interface A2AAgentCard {
+    agentId: string;
+    name: string;
+    description?: string;
+    url: string;
+    protocolVersions: string[];
+    capabilities: {
+        streaming?: boolean;
+        pushNotifications?: boolean;
+        extendedAgentCard?: boolean;
+        stateTransitionHistory?: boolean;
+    };
+    skills?: Array<{
+        id: string;
+        name: string;
+        description?: string;
+        inputModes?: string[];
+        outputModes?: string[];
+        tags?: string[];
+        examples?: string[];
+    }>;
+    defaultInputModes?: string[];
+    defaultOutputModes?: string[];
+    provider?: {
+        organization?: string;
+        url?: string;
+    };
+    documentationUrl?: string;
 }
-export interface CreateA2ATaskInput {
-    task_type: string;
-    task_description: string;
-    responder_agent_id?: string;
-    priority?: A2ATask["priority"];
-    input_data?: Record<string, unknown>;
+export interface A2ASendMessageInput {
+    message: A2AMessage;
+    configuration?: {
+        acceptedOutputModes?: string[];
+        historyLength?: number;
+        blocking?: boolean;
+    };
+    metadata?: Record<string, unknown>;
 }
-export interface SendA2AMessageInput {
-    task_id: string;
-    receiver_agent_id: string;
-    message_type: A2AMessage["message_type"];
-    content: Record<string, unknown>;
+export interface A2AListTasksInput {
+    contextId?: string;
+    status?: A2ATaskState;
+    pageSize?: number;
+    pageToken?: string;
+    historyLength?: number;
+    includeArtifacts?: boolean;
+}
+export interface A2AListTasksResponse {
+    tasks: A2ATask[];
+    nextPageToken: string;
+    pageSize: number;
+    totalSize: number;
 }
 export declare class KronovaSDKBase {
     private config;
@@ -301,6 +351,7 @@ export declare class KronovaSDKBase {
         body?: unknown;
         params?: Record<string, string | number | boolean | undefined>;
         headers?: Record<string, string>;
+        baseUrl?: string;
     }): Promise<APIResponse<T>>;
     /**
      * Get SDK configuration
@@ -464,52 +515,29 @@ declare class OAuthClient_SDK {
 declare class A2AClient {
     private sdk;
     constructor(sdk: KronovaSDKBase);
-    listAgentCards(params?: PaginationParams): Promise<APIResponse<A2AAgentCard[]>>;
-    getAgentCard(id: string): Promise<APIResponse<A2AAgentCard>>;
-    createAgentCard(input: {
-        agent_id: string;
-        name: string;
-        description: string;
-        capabilities: string[];
-        endpoint_url: string;
-        authentication_method: A2AAgentCard["authentication_method"];
-        metadata?: Record<string, unknown>;
-    }): Promise<APIResponse<A2AAgentCard>>;
-    updateAgentCard(id: string, input: Partial<{
-        name: string;
-        description: string;
-        capabilities: string[];
-        endpoint_url: string;
-        metadata: Record<string, unknown>;
-    }>): Promise<APIResponse<A2AAgentCard>>;
-    deleteAgentCard(id: string): Promise<APIResponse<{
-        deleted: boolean;
-    }>>;
-    listTasks(params?: PaginationParams & {
-        status?: A2ATask["status"];
-    }): Promise<APIResponse<A2ATask[]>>;
-    getTask(id: string): Promise<APIResponse<A2ATask>>;
-    createTask(input: CreateA2ATaskInput): Promise<APIResponse<A2ATask>>;
-    acceptTask(id: string, agentId: string): Promise<APIResponse<A2ATask>>;
-    completeTask(id: string, result: Record<string, unknown>): Promise<APIResponse<A2ATask>>;
-    cancelTask(id: string): Promise<APIResponse<A2ATask>>;
-    listMessages(params?: PaginationParams & {
-        task_id?: string;
-    }): Promise<APIResponse<A2AMessage[]>>;
-    getMessage(id: string): Promise<APIResponse<A2AMessage>>;
-    sendMessage(input: SendA2AMessageInput): Promise<APIResponse<A2AMessage>>;
-    discoverAgents(params?: {
-        capabilities?: string[];
-        protocol_version?: string;
-    }): Promise<APIResponse<A2AAgentCard[]>>;
-    connectToExternalAgent(params: {
-        external_agent_url: string;
-        auth_token?: string;
-        trust_level?: "trusted" | "verified" | "unverified";
-    }): Promise<APIResponse<{
-        connection_id: string;
-        agent_card: A2AAgentCard;
-    }>>;
+    /**
+     * The A2A endpoint lives at /api/a2a on the app origin, outside the versioned /api/v1 surface.
+     */
+    private call;
+    /** List public Agent Cards. Does not require authentication. */
+    discover(): Promise<{
+        agents: A2AAgentCard[];
+        protocolVersion: string;
+    }>;
+    /** List Agent Cards owned by the API key's user (raw database rows). Requires `read:agents`. */
+    listAgentCards(): Promise<{
+        cards: Record<string, unknown>[];
+    }>;
+    getAgentCard(agentId: string): Promise<A2AAgentCard>;
+    /** Requires `write:agents`. The server assigns the `agentId`. */
+    createAgentCard(card: Omit<A2AAgentCard, "agentId">): Promise<A2AAgentCard>;
+    sendMessage(input: A2ASendMessageInput): Promise<A2ATask | A2AMessage>;
+    getTask(taskId: string, historyLength?: number): Promise<A2ATask>;
+    listTasks(params?: A2AListTasksInput): Promise<A2AListTasksResponse>;
+    cancelTask(taskId: string): Promise<A2ATask>;
+    updateTaskStatus(taskId: string, status: A2ATaskStatus): Promise<A2ATask>;
+    addArtifact(taskId: string, artifact: A2AArtifact): Promise<A2AArtifact>;
+    sendViaAetherNet(targetAddress: string, request: A2ASendMessageInput): Promise<unknown>;
 }
 export interface KairoMessage {
     role: "user" | "assistant";

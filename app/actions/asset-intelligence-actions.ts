@@ -2,6 +2,8 @@
 
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
+import { after } from "next/server"
+import { triggerWebhooks } from "@/lib/webhooks/webhook-delivery"
 import {
   createAssetSchema,
   updateAssetSchema,
@@ -30,6 +32,23 @@ import { recordTokenUsage } from "@/lib/stripe/metering"
 
 async function createAssetIntelligenceSystem(supabase) {
   return new AssetIntelligenceSystem(supabase)
+}
+
+function assetEventPayload(asset: {
+  id: string
+  asset_id?: string | null
+  name?: string | null
+  asset_type?: string | null
+  status?: string | null
+}) {
+  return {
+    assetId: asset.id,
+    assetTag: asset.asset_id,
+    name: asset.name,
+    assetType: asset.asset_type,
+    status: asset.status,
+    timestamp: new Date().toISOString(),
+  }
 }
 
 // Asset CRUD Operations
@@ -66,12 +85,14 @@ export async function createAsset(formData: CreateAsset) {
       user_id: user.id,
     })
 
+    after(() => triggerWebhooks({ userId: user.id, event: "asset.created", payload: assetEventPayload(data) }))
+
     revalidatePath("/ai-suite/asset-intelligence")
     return { success: true, data }
   } catch (error) {
     console.error("Error in createAsset:", error)
     if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors[0].message }
+      return { success: false, error: error.issues[0].message }
     }
     return { success: false, error: "An unexpected error occurred" }
   }
@@ -117,12 +138,14 @@ export async function updateAsset(formData: UpdateAsset) {
       return { success: false, error: error.message }
     }
 
+    after(() => triggerWebhooks({ userId: user.id, event: "asset.updated", payload: assetEventPayload(data) }))
+
     revalidatePath("/ai-suite/asset-intelligence")
     return { success: true, data }
   } catch (error) {
     console.error("Error in updateAsset:", error)
     if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors[0].message }
+      return { success: false, error: error.issues[0].message }
     }
     return { success: false, error: "An unexpected error occurred" }
   }
@@ -345,7 +368,7 @@ export async function createAssetLifecycleEvent(formData: CreateAssetLifecycleEv
   } catch (error) {
     console.error("Error in createAssetLifecycleEvent:", error)
     if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors[0].message }
+      return { success: false, error: error.issues[0].message }
     }
     return { success: false, error: "An unexpected error occurred" }
   }
@@ -513,7 +536,7 @@ export async function getAssetInsights(assetId: string, filters?: InsightFilter)
   } catch (error) {
     console.error("Error in getAssetInsights:", error)
     if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors[0].message }
+      return { success: false, error: error.issues[0].message }
     }
     return { success: false, error: "An unexpected error occurred" }
   }
@@ -646,12 +669,18 @@ export async function bulkUpdateAssets(request: BulkAssetUpdate) {
       return { success: false, error: error.message }
     }
 
+    after(async () => {
+      for (const asset of data ?? []) {
+        await triggerWebhooks({ userId: user.id, event: "asset.updated", payload: assetEventPayload(asset) })
+      }
+    })
+
     revalidatePath("/ai-suite/asset-intelligence")
     return { success: true, data }
   } catch (error) {
     console.error("Error in bulkUpdateAssets:", error)
     if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors[0].message }
+      return { success: false, error: error.issues[0].message }
     }
     return { success: false, error: "An unexpected error occurred" }
   }
@@ -705,7 +734,7 @@ export async function bulkInsightAction(request: BulkInsightAction) {
   } catch (error) {
     console.error("Error in bulkInsightAction:", error)
     if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors[0].message }
+      return { success: false, error: error.issues[0].message }
     }
     return { success: false, error: "An unexpected error occurred" }
   }
@@ -740,7 +769,7 @@ export async function createAssetWorkflow(formData: CreateAssetWorkflow) {
   } catch (error) {
     console.error("Error in createAssetWorkflow:", error)
     if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors[0].message }
+      return { success: false, error: error.issues[0].message }
     }
     return { success: false, error: "An unexpected error occurred" }
   }
@@ -804,7 +833,7 @@ export async function executeAssetWorkflow(request: WorkflowExecutionRequest) {
   } catch (error) {
     console.error("Error in executeAssetWorkflow:", error)
     if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors[0].message }
+      return { success: false, error: error.issues[0].message }
     }
     return { success: false, error: "An unexpected error occurred" }
   }

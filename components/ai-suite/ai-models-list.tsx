@@ -47,9 +47,11 @@ export function AIModelsList({ models }: AIModelsListProps) {
             <CardContent>
               <div className="flex items-center justify-between">
                 <Badge className="bg-muted text-muted-foreground">{model.provider}</Badge>
-                <p className="text-sm text-muted-foreground">
-                  Cost: ${model.cost_per_1k_tokens?.toFixed(3)} / 1k tokens
-                </p>
+                {model.cost_per_1k_tokens != null && (
+                  <p className="text-sm text-muted-foreground">
+                    Cost: ${Number(model.cost_per_1k_tokens).toFixed(3)} / 1k tokens
+                  </p>
+                )}
               </div>
               <div className="mt-2 flex flex-wrap gap-1">
                 {model.capabilities.map((capability) => (

@@ -5,7 +5,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
-import { Menu } from "lucide-react"
+import { LogIn, Menu, UserPlus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 
@@ -36,8 +36,8 @@ export function ConditionalSiteHeader() {
           <Link
             href="/login"
             className={cn(
-              buttonVariants({ variant: "ghost", size: "sm" }),
-              "text-foreground hover:text-primary hover:bg-primary/10 transition-colors",
+              buttonVariants({ variant: "outline", size: "sm" }),
+              "bg-transparent border-primary/30 hover:border-primary/60 hover:bg-primary/10 hover:text-foreground",
             )}
           >
             Login
@@ -45,8 +45,8 @@ export function ConditionalSiteHeader() {
           <Link
             href="/signup"
             className={cn(
-              buttonVariants({ variant: "default", size: "sm" }),
-              "bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground shadow-lg shadow-primary/20",
+              buttonVariants({ size: "sm" }),
+              "bg-primary text-primary-foreground font-semibold shadow-lg shadow-primary/25 hover:bg-primary/90",
             )}
           >
             Sign Up
@@ -61,37 +61,37 @@ export function ConditionalSiteHeader() {
               <span className="sr-only">Toggle menu</span>
             </Button>
           </SheetTrigger>
-          <SheetContent side="right" className="w-[280px] glass-morphism border-l border-border/50">
-            <div className="flex items-center gap-3 mb-8">
+          <SheetContent side="right" className="w-[260px] glass-morphism border-l border-border/50">
+            <div className="flex items-center gap-2 mb-5">
               <Image
                 src="/logos/kronova-logo-icon.svg"
                 alt="Kronova"
-                width={32}
-                height={32}
-                className="h-8 w-8"
+                width={24}
+                height={24}
+                className="h-6 w-6"
               />
               <div>
-                <h3 className="text-sm font-bold text-foreground">KRONOVA</h3>
-                <p className="text-xs text-muted-foreground">INTELLIGENT SYSTEMS</p>
+                <h3 className="text-xs font-bold text-foreground leading-tight">KRONOVA</h3>
+                <p className="text-[10px] text-muted-foreground leading-tight">INTELLIGENT SYSTEMS</p>
               </div>
             </div>
-            <nav className="flex flex-col gap-3">
+            <nav className="flex flex-col gap-2">
               <Link
                 href="/login"
-                className={cn(
-                  buttonVariants({ variant: "ghost", size: "lg" }),
-                  "justify-start text-foreground hover:text-primary hover:bg-primary/10 transition-colors",
-                )}
+                className="flex items-center gap-3 rounded-xl border border-primary/30 px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-primary/60 hover:bg-primary/10"
               >
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                  <LogIn className="h-4 w-4" aria-hidden="true" />
+                </span>
                 Login
               </Link>
               <Link
                 href="/signup"
-                className={cn(
-                  buttonVariants({ variant: "default", size: "lg" }),
-                  "justify-start bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground shadow-lg",
-                )}
+                className="flex items-center gap-3 rounded-xl bg-primary px-3 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/25 transition-colors hover:bg-primary/90"
               >
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-foreground/15">
+                  <UserPlus className="h-4 w-4" aria-hidden="true" />
+                </span>
                 Sign Up
               </Link>
             </nav>

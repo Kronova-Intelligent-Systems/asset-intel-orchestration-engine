@@ -92,7 +92,7 @@ export async function createAssetEmbeddings(formData: z.infer<typeof createAsset
   } catch (error) {
     console.error("Error in createAssetEmbeddings:", error)
     if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors[0].message }
+      return { success: false, error: error.issues[0].message }
     }
     return { success: false, error: "An unexpected error occurred" }
   }
@@ -132,7 +132,7 @@ export async function searchSimilarAssets(formData: z.infer<typeof assetSearchSc
   } catch (error) {
     console.error("Error in searchSimilarAssets:", error)
     if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors[0].message }
+      return { success: false, error: error.issues[0].message }
     }
     return { success: false, error: "An unexpected error occurred" }
   }
@@ -182,7 +182,7 @@ export async function getAssetRecommendations(formData: z.infer<typeof assetReco
   } catch (error) {
     console.error("Error in getAssetRecommendations:", error)
     if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors[0].message }
+      return { success: false, error: error.issues[0].message }
     }
     return { success: false, error: "An unexpected error occurred" }
   }
@@ -235,7 +235,7 @@ export async function generateAssetRAGContext(formData: z.infer<typeof ragContex
   } catch (error) {
     console.error("Error in generateAssetRAGContext:", error)
     if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors[0].message }
+      return { success: false, error: error.issues[0].message }
     }
     return { success: false, error: "An unexpected error occurred" }
   }

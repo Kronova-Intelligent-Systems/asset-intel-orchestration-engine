@@ -71,7 +71,7 @@ export function ShippingForm({ availablePackages }: ShippingFormProps) {
   } | null>(null)
 
   // Initialize the form
-  const form = useForm<FormValues>({
+  const form = useForm<z.input<typeof formSchema>, unknown, FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       carrier: "",
@@ -244,7 +244,13 @@ export function ShippingForm({ availablePackages }: ShippingFormProps) {
                         <FormItem>
                           <FormLabel>Weight (kg)</FormLabel>
                           <FormControl>
-                            <Input type="number" min="0.1" step="0.01" {...field} />
+                            <Input
+                              type="number"
+                              min="0.1"
+                              step="0.01"
+                              {...field}
+                              value={(field.value as number | undefined) ?? ""}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -258,7 +264,13 @@ export function ShippingForm({ availablePackages }: ShippingFormProps) {
                         <FormItem>
                           <FormLabel>Shipping Cost</FormLabel>
                           <FormControl>
-                            <Input type="number" min="0" step="0.01" {...field} />
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              {...field}
+                              value={(field.value as number | undefined) ?? ""}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>

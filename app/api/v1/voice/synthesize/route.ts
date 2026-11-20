@@ -6,10 +6,9 @@ import type { ResendItVoiceConfig } from "@/lib/voice/elevenlabs-client"
 // POST /api/v1/voice/synthesize - Text-to-speech synthesis
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization")
-    const validation = await validateDualAuth(authHeader, ["voice:synthesize"])
+    const validation = await validateDualAuth(request, ["voice:synthesize"])
 
-    if (!validation.valid) {
+    if (!validation.authenticated) {
       return NextResponse.json(
         {
           error: validation.error,
@@ -26,7 +25,7 @@ export async function POST(request: NextRequest) {
     const {
       text,
       voiceId = "EXAVITQu4vr4xnSDxMaL", // Default voice
-      modelId = "eleven_monolingual_v1",
+      modelId = "eleven_multilingual_v2",
       stability = 0.5,
       similarityBoost = 0.75,
       style = 0.0,

@@ -1,7 +1,6 @@
 "use server"
 
 import { createServerSupabaseClient } from "@/lib/supabase/server"
-import { cookies } from "next/headers"
 import { v4 as uuidv4 } from "uuid"
 import { revalidatePath } from "next/cache"
 import { generateReusablePackage, generateShippingData } from "@/lib/seed/shipping-seed"
@@ -47,8 +46,7 @@ function createShippingDescription(shippingData: ShippingInsert): string {
 
 // Server action to seed the database with mock shipment embeddings
 export async function seedShipmentEmbeddings(userId: string, count = 50) {
-  const cookieStore = await cookies()
-  const supabase = await createServerSupabaseClient(cookieStore)
+  const supabase = await createServerSupabaseClient()
 
   // Use the provided userId or fall back to the environment variable
   const targetUserId = userId || process.env.SEED_USER_ID || "00000000-0000-0000-0000-000000000000"
@@ -98,8 +96,7 @@ export async function seedShipmentEmbeddings(userId: string, count = 50) {
 
 // Function to seed reusable packages
 export async function seedReusablePackages(count = 20) {
-  const cookieStore = cookies()
-  const supabase = createServerSupabaseClient(cookieStore)
+  const supabase = await createServerSupabaseClient()
 
   try {
     // Check if the reusable_packages table has the required columns using direct SQL
@@ -161,8 +158,7 @@ export async function seedReusablePackages(count = 20) {
 
 // Function to seed shipping records
 export async function seedShippingRecords(count = 30) {
-  const cookieStore = cookies()
-  const supabase = createServerSupabaseClient(cookieStore)
+  const supabase = await createServerSupabaseClient()
 
   try {
     // Check if the shipping table has the package_ids column using direct SQL
@@ -261,8 +257,7 @@ export async function seedShippingDashboard(packageCount = 20, shippingCount = 3
 }
 
 export async function seedAssetEmbeddings(userId: string, count = 50) {
-  const cookieStore = await cookies()
-  const supabase = await createServerSupabaseClient(cookieStore)
+  const supabase = await createServerSupabaseClient()
 
   const targetUserId = userId || process.env.SEED_USER_ID || "00000000-0000-0000-0000-000000000000"
 

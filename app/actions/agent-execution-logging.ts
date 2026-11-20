@@ -16,7 +16,7 @@ const logAgentRunSchema = z.object({
   executionTimeMs: z.number().default(0),
   iterations: z.number().default(1),
   toolCalls: z.array(z.any()).default([]),
-  contextData: z.record(z.any()).optional(),
+  contextData: z.record(z.string(), z.any()).optional(),
   status: z.enum(["completed", "failed", "cancelled"]).default("completed"),
   errorMessage: z.string().optional(),
 })

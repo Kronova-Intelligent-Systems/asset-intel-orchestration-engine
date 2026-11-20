@@ -56,7 +56,7 @@ export const reusablePackageSchema = z.object({
   reuse_count: z.number().int().min(0).default(0),
   status: z.enum(["available", "in_use", "damaged", "retired"]).default("available"),
   location_id: z.string().optional(),
-  metadata: z.record(z.any()).default({}),
+  metadata: z.record(z.string(), z.any()).default({}),
   iot_sensor_id: z.string().optional(), // Add iot_sensor_id
 })
 

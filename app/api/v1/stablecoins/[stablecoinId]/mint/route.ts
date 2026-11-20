@@ -54,7 +54,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     console.error("[API] Mint error:", error)
 
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ success: false, error: "Validation failed", details: error.errors }, { status: 400 })
+      return NextResponse.json({ success: false, error: "Validation failed", details: error.issues }, { status: 400 })
     }
 
     return NextResponse.json({ success: false, error: "Failed to mint tokens" }, { status: 500 })

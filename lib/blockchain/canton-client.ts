@@ -35,7 +35,7 @@ export const cantonPartySchema = z.object({
 export const cantonContractSchema = z.object({
   contractId: z.string(),
   templateId: z.string(),
-  payload: z.record(z.any()),
+  payload: z.record(z.string(), z.any()),
   signatories: z.array(z.string()),
   observers: z.array(z.string()),
   createdAt: z.string().datetime(),

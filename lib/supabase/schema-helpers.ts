@@ -1,10 +1,7 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server"
-import { cookies } from "next/headers"
-
 // Function to ensure the shipping schema exists with all required columns
 export async function ensureShippingSchemaExists(): Promise<boolean> {
-  const cookieStore = cookies()
-  const supabase = createServerSupabaseClient(cookieStore)
+  const supabase = await createServerSupabaseClient()
 
   try {
     // First, check if the function exists by trying to use it
@@ -279,8 +276,7 @@ export async function ensureShippingSchemaExists(): Promise<boolean> {
 
 // Direct SQL method to check if a column exists in a table
 export async function checkColumnExists(tableName: string, columnName: string): Promise<boolean> {
-  const cookieStore = cookies()
-  const supabase = createServerSupabaseClient(cookieStore)
+  const supabase = await createServerSupabaseClient()
 
   try {
     // Use direct SQL query instead of RPC

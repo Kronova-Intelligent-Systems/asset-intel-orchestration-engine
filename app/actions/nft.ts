@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache"
 
 // Mint NFT function (local database)
 export async function mintNFT({ userId, profileId, name }: { userId: string; profileId: string; name: string }) {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
 
   try {
     // Basic validation
@@ -62,7 +62,7 @@ export async function saveSuiNFT({
   txDigest: string
   imageUrl?: string
 }) {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
 
   try {
     // Basic validation

@@ -1,6 +1,8 @@
 import { AIClient } from "../ai/ai-client"
 import { createClient } from "@supabase/supabase-js"
 import type { DataEmbedding } from "../types/database"
+import { chunkText } from "./chunker"
+import { STORED_EMBEDDING_DIMENSIONS, SUPPORTED_EMBEDDING_MODELS, isSupportedEmbeddingModel } from "./supported-models"
 
 // Define the document interface
 export interface Document {
@@ -24,86 +26,144 @@ export interface SearchResult {
   similarity: number
 }
 
+export interface EmbeddingRunStats {
+  requested: number
+  stored: number
+  failed: number
+  errors: string[]
+}
+
+export interface CreateEmbeddingsOptions {
+  datasetId?: string
+  sourceType?: string
+  onProgress?: (processed: number, total: number) => Promise<void> | void
+}
+
+const BATCH_SIZE = 64
+const MAX_ATTEMPTS = 3
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
 // Embedding system class
 export class EmbeddingSystem {
   private supabase: any
   private aiClient: AIClient
   private embeddingModel: string
   private embeddingDimensions: number
+  lastRunStats: EmbeddingRunStats = { requested: 0, stored: 0, failed: 0, errors: [] }
 
-  constructor(supabaseUrl: string, supabaseKey: string, embeddingModel = "text-embedding-ada-002", dimensions = 1536) {
+  constructor(
+    supabaseUrl: string,
+    supabaseKey: string,
+    embeddingModel = "text-embedding-ada-002",
+    dimensions = STORED_EMBEDDING_DIMENSIONS,
+  ) {
     this.supabase = createClient(supabaseUrl, supabaseKey)
     this.aiClient = new AIClient("openai", process.env.OPENAI_API_KEY || "", embeddingModel)
     this.embeddingModel = embeddingModel
     this.embeddingDimensions = dimensions
   }
 
-  // Create embeddings for documents with batch processing
+  private assertSupportedModel() {
+    if (!isSupportedEmbeddingModel(this.embeddingModel)) {
+      throw new Error(
+        `Embedding model "${this.embeddingModel}" is not supported for imports. Use one of: ${Object.keys(SUPPORTED_EMBEDDING_MODELS).join(", ")}.`,
+      )
+    }
+  }
+
+  /** Embeds several texts in one request, retrying transient failures, and validates every vector's size. */
+  private async embedBatch(inputs: string[]): Promise<number[][]> {
+    this.assertSupportedModel()
+    const requestDimensions = SUPPORTED_EMBEDDING_MODELS[this.embeddingModel].supportsDimensions
+      ? { dimensions: this.embeddingDimensions }
+      : {}
+
+    for (let attempt = 0; ; attempt++) {
+      try {
+        const response = await this.aiClient.createEmbedding({
+          model: this.embeddingModel,
+          input: inputs,
+          ...requestDimensions,
+        })
+        const vectors = [...response.data]
+          .sort((a: any, b: any) => (a.index ?? 0) - (b.index ?? 0))
+          .map((item) => item.embedding)
+
+        if (vectors.length !== inputs.length) {
+          throw new Error(`Expected ${inputs.length} embeddings but received ${vectors.length}`)
+        }
+        const wrongSize = vectors.find((vector) => vector.length !== this.embeddingDimensions)
+        if (wrongSize) {
+          throw new Error(
+            `Model returned ${wrongSize.length} dimensions but the database stores ${this.embeddingDimensions}`,
+          )
+        }
+        return vectors
+      } catch (error) {
+        if (attempt >= MAX_ATTEMPTS - 1) throw error
+        await sleep(500 * 2 ** attempt)
+      }
+    }
+  }
+
+  // Create embeddings for documents with batched requests and batched inserts
   async createEmbeddings(
     documents: Document[],
     userId: string,
     name: string,
     description?: string,
+    options: CreateEmbeddingsOptions = {},
   ): Promise<EmbeddingResult[]> {
+    this.assertSupportedModel()
     const embeddings: EmbeddingResult[] = []
-    const batchSize = 50 // Process 50 documents at a time
+    const stats: EmbeddingRunStats = { requested: documents.length, stored: 0, failed: 0, errors: [] }
+    this.lastRunStats = stats
 
-    // Process documents in batches to avoid overwhelming the API
-    for (let i = 0; i < documents.length; i += batchSize) {
-      const batch = documents.slice(i, i + batchSize)
+    for (let i = 0; i < documents.length; i += BATCH_SIZE) {
+      const batch = documents.slice(i, i + BATCH_SIZE)
 
-      for (const document of batch) {
-        try {
-          // Generate embedding
-          const embeddingResponse = await this.aiClient.createEmbedding({
-            model: this.embeddingModel,
-            input: document.content,
-          })
+      try {
+        const vectors = await this.embedBatch(batch.map((document) => document.content))
 
-          const embedding = embeddingResponse.data[0].embedding
+        const rows = batch.map((document, index) => ({
+          name,
+          description,
+          source_type: options.sourceType ?? "document",
+          source_id: document.id,
+          embedding_model: this.embeddingModel,
+          vector_data: vectors[index],
+          metadata: {
+            ...document.metadata,
+            content: document.content,
+            batchIndex: Math.floor(i / BATCH_SIZE),
+          },
+          user_id: userId,
+          dataset_id: options.datasetId ?? null,
+        }))
 
-          // Store the embedding in the database
-          const { data, error } = await this.supabase
-            .from("data_embeddings")
-            .insert({
-              name,
-              description,
-              source_type: "document",
-              source_id: document.id,
-              embedding_model: this.embeddingModel,
-              vector_data: embedding,
-              metadata: {
-                ...document.metadata,
-                content: document.content,
-                batchIndex: Math.floor(i / batchSize),
-              },
-              user_id: userId,
-            })
-            .select()
+        const { data, error } = await this.supabase.from("data_embeddings").insert(rows).select("id")
+        if (error) throw new Error(error.message)
 
-          if (error) {
-            console.error("Error storing embedding:", error)
-            throw error
-          }
-
+        data.forEach((row: { id: string }, index: number) => {
           embeddings.push({
-            id: data[0].id,
-            embedding,
-            metadata: {
-              ...document.metadata,
-              content: document.content,
-            },
+            id: row.id,
+            embedding: vectors[index],
+            metadata: { ...batch[index].metadata, content: batch[index].content },
           })
-        } catch (error) {
-          console.error(`Error processing document ${document.id}:`, error)
-          // Continue with other documents instead of failing completely
-        }
+        })
+        stats.stored += batch.length
+      } catch (error: any) {
+        stats.failed += batch.length
+        if (stats.errors.length < 5) stats.errors.push(error?.message ?? String(error))
+        console.error(`Error embedding batch starting at ${i}:`, error)
       }
 
-      // Add a small delay between batches to avoid rate limiting
-      if (i + batchSize < documents.length) {
-        await new Promise((resolve) => setTimeout(resolve, 100))
-      }
+      await options.onProgress?.(Math.min(i + BATCH_SIZE, documents.length), documents.length)
+    }
+
+    if (documents.length > 0 && stats.stored === 0) {
+      throw new Error(`No embeddings were stored. ${stats.errors[0] ?? "Unknown error"}`)
     }
 
     return embeddings
@@ -111,15 +171,8 @@ export class EmbeddingSystem {
 
   // Search for similar documents
   async searchSimilarDocuments(query: string, userId: string, limit = 5, threshold = 0.7): Promise<SearchResult[]> {
-    // Generate embedding for the query
-    const embeddingResponse = await this.aiClient.createEmbedding({
-      model: this.embeddingModel,
-      input: query,
-    })
+    const [queryEmbedding] = await this.embedBatch([query])
 
-    const queryEmbedding = embeddingResponse.data[0].embedding
-
-    // Search for similar documents in the database
     const { data, error } = await this.supabase.rpc("match_embeddings", {
       query_embedding: queryEmbedding,
       match_threshold: threshold,
@@ -132,15 +185,12 @@ export class EmbeddingSystem {
       throw error
     }
 
-    // Format the results
-    const results: SearchResult[] = data.map((item: any) => ({
+    return data.map((item: any) => ({
       id: item.id,
       content: item.content,
       metadata: item.metadata,
       similarity: item.similarity,
     }))
-
-    return results
   }
 
   // Process a document file and create chunks
@@ -152,64 +202,17 @@ export class EmbeddingSystem {
       chunkOverlap: number
     },
   ): Promise<Document[]> {
-    const { chunkSize, chunkOverlap } = options
-
-    // For very large files, use a more memory-efficient chunking approach
-    const chunks: Document[] = []
-    let startIndex = 0
-    let chunkIndex = 0
-
-    // Process in batches to avoid memory issues with very large files
-    const batchSize = 1000 // Process 1000 chunks at a time
-
-    while (startIndex < fileContent.length) {
-      const endIndex = Math.min(startIndex + chunkSize, fileContent.length)
-
-      // Find a good break point (end of sentence or paragraph) near the end
-      let actualEndIndex = endIndex
-      if (endIndex < fileContent.length) {
-        // Look for sentence endings within the last 100 characters
-        const searchStart = Math.max(endIndex - 100, startIndex)
-        const searchText = fileContent.substring(searchStart, endIndex + 100)
-        const sentenceEnd = searchText.search(/[.!?]\s+/)
-
-        if (sentenceEnd !== -1) {
-          actualEndIndex = searchStart + sentenceEnd + 1
-        }
-      }
-
-      const chunk = fileContent.substring(startIndex, actualEndIndex).trim()
-
-      if (chunk.length > 0) {
-        chunks.push({
-          id: `${fileName}-chunk-${chunkIndex}`,
-          content: chunk,
-          metadata: {
-            fileName,
-            chunkIndex,
-            startIndex,
-            endIndex: actualEndIndex,
-            fileSize: fileContent.length,
-          },
-        })
-        chunkIndex++
-      }
-
-      // Move the window, accounting for overlap
-      startIndex = actualEndIndex - chunkOverlap
-
-      // Ensure we make progress and don't get stuck
-      if (startIndex >= fileContent.length || startIndex <= 0) {
-        break
-      }
-
-      // Prevent infinite loops
-      if (startIndex >= actualEndIndex) {
-        startIndex = actualEndIndex
-      }
-    }
-
-    return chunks
+    return chunkText(fileContent, options).map((chunk, chunkIndex) => ({
+      id: `${fileName}-chunk-${chunkIndex}`,
+      content: chunk.content,
+      metadata: {
+        fileName,
+        chunkIndex,
+        startIndex: chunk.start,
+        endIndex: chunk.end,
+        fileSize: fileContent.length,
+      },
+    }))
   }
 
   // Get all embeddings for a user
@@ -257,11 +260,7 @@ export class EmbeddingSystem {
 
   // Generate embedding for a single text input
   async generateEmbedding(text: string): Promise<number[]> {
-    const embeddingResponse = await this.aiClient.createEmbedding({
-      model: this.embeddingModel,
-      input: text,
-    })
-
-    return embeddingResponse.data[0].embedding
+    const [embedding] = await this.embedBatch([text])
+    return embedding
   }
 }

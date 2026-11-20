@@ -26,7 +26,7 @@ const CreateAssetWorkflowSchema = z.object({
       type: z.string(),
       name: z.string(),
       description: z.string().optional(),
-      config: z.record(z.any()),
+      config: z.record(z.string(), z.any()),
       next_steps: z.array(z.string()),
       agent_decision_point: z
         .object({
@@ -51,18 +51,18 @@ const CreateAssetWorkflowSchema = z.object({
       name: z.string(),
       description: z.string(),
       trigger_type: z.enum(["insight_generated", "threshold_exceeded", "schedule", "manual", "agent_recommendation"]),
-      conditions: z.record(z.any()),
+      conditions: z.record(z.string(), z.any()),
       auto_execute: z.boolean(),
       requires_approval: z.boolean(),
     }),
   ),
-  success_criteria: z.array(z.record(z.any())),
-  asset_context: z.record(z.any()).optional(),
+  success_criteria: z.array(z.record(z.string(), z.any())),
+  asset_context: z.record(z.string(), z.any()).optional(),
 })
 
 const ExecuteWorkflowSchema = z.object({
   workflowId: z.string(),
-  input: z.record(z.any()).optional(),
+  input: z.record(z.string(), z.any()).optional(),
   options: z
     .object({
       autonomous_mode: z.boolean().optional(),

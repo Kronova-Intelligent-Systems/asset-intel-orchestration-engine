@@ -28,8 +28,8 @@ export const updateTokenMetadataSchema = z.object({
   tokenId: z.string().uuid(),
   status: z.enum(["active", "inactive", "maintenance", "retired"]),
   currentValue: z.number().positive(),
-  location: z.record(z.any()),
-  esgMetrics: z.record(z.any()),
+  location: z.record(z.string(), z.any()),
+  esgMetrics: z.record(z.string(), z.any()),
 })
 
 // ==================== Core Tokenization Functions ====================

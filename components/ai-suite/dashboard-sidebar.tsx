@@ -25,7 +25,8 @@ import {
   Calculator,
   Sun,
   Moon,
-  Truck,
+  Radar,
+  Handshake,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -84,11 +85,11 @@ const navigationSections = [
         description: "Voice commands & NLP",
       },
       {
-        name: "IoT Fleet",
-        href: "/ai-suite/iot-fleet",
-        icon: Truck,
+        name: "IoT Command Center",
+        href: "/ai-suite/iot",
+        icon: Radar,
         badge: "iot",
-        description: "Fleet telemetry & IoT",
+        description: "Devices & critical infrastructure",
       },
     ],
   },
@@ -108,6 +109,13 @@ const navigationSections = [
         icon: Network,
         badge: null,
         description: "Post-quantum settlement",
+      },
+      {
+        name: "Live A2A Demo",
+        href: "/ai-suite/a2a-demo",
+        icon: Handshake,
+        badge: null,
+        description: "Agents settling a deal",
       },
     ],
   },
@@ -263,42 +271,42 @@ export function DashboardSidebar({ isMobile = false, onNavigate }: DashboardSide
                             <motion.div
                               whileTap={{ scale: 0.98 }}
                               className={cn(
-                                "group flex items-center justify-between px-4 py-3.5 rounded-xl transition-all duration-200 min-h-[52px]",
+                                "group relative flex items-center justify-between px-4 py-3.5 rounded-xl border transition-all duration-200 min-h-[52px]",
                                 isActive
-                                  ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25"
-                                  : "hover:bg-accent/50 active:bg-accent",
+                                  ? "bg-gradient-to-r from-primary/15 to-accent/5 text-foreground border-primary/30 shadow-sm"
+                                  : "border-transparent hover:bg-accent/50 active:bg-accent",
                               )}
                             >
+                              {isActive && (
+                                <span
+                                  aria-hidden="true"
+                                  className="absolute left-0 top-1/2 -translate-y-1/2 h-7 w-1 rounded-r-full bg-gradient-to-b from-primary to-accent"
+                                />
+                              )}
                               <div className="flex items-center gap-3 flex-1 min-w-0">
                                 <div
                                   className={cn(
                                     "w-10 h-10 rounded-xl flex items-center justify-center transition-all shrink-0",
                                     isActive
-                                      ? "bg-primary-foreground/10"
-                                      : "bg-accent/50 group-hover:bg-accent group-hover:scale-105",
+                                      ? "bg-gradient-to-br from-primary to-accent text-primary-foreground shadow-md shadow-primary/25"
+                                      : "bg-gradient-to-br from-primary/10 to-accent/20 text-primary group-hover:from-primary/20 group-hover:to-accent/30 group-hover:scale-105",
                                   )}
                                 >
                                   <item.icon className="w-5 h-5" />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <p className="font-semibold text-sm leading-none mb-1">{item.name}</p>
-                                  <p
-                                    className={cn(
-                                      "text-xs leading-none truncate",
-                                      isActive ? "text-primary-foreground/70" : "text-muted-foreground",
-                                    )}
-                                  >
+                                  <p className="text-xs leading-none truncate text-muted-foreground">
                                     {item.description}
                                   </p>
                                 </div>
                               </div>
                               {badgeCount !== null && badgeCount !== undefined && (
                                 <Badge
-                                  variant={isActive ? "secondary" : "outline"}
+                                  variant="outline"
                                   className={cn(
                                     "h-7 min-w-[28px] px-2.5 font-bold text-xs shrink-0 ml-2",
-                                    isActive &&
-                                      "bg-primary-foreground/10 text-primary-foreground border-primary-foreground/20",
+                                    isActive && "bg-primary/15 text-primary border-primary/30",
                                   )}
                                 >
                                   {badgeCount}
@@ -442,17 +450,17 @@ export function DashboardSidebar({ isMobile = false, onNavigate }: DashboardSide
                             whileHover={{ scale: 1.02, x: 2 }}
                             whileTap={{ scale: 0.98 }}
                             className={cn(
-                              "relative flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group",
+                              "relative flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all duration-200 group",
                               isActive
-                                ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
-                                : "hover:bg-accent/50",
+                                ? "bg-gradient-to-r from-primary/15 to-accent/5 text-foreground border-primary/30 shadow-sm"
+                                : "border-transparent hover:bg-accent/50",
                               collapsed && "justify-center px-2",
                             )}
                           >
                             {isActive && (
                               <motion.div
                                 layoutId="activeIndicator"
-                                className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-primary-foreground rounded-r-full"
+                                className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-gradient-to-b from-primary to-accent rounded-r-full"
                                 transition={{ type: "spring", stiffness: 380, damping: 30 }}
                               />
                             )}
@@ -461,8 +469,8 @@ export function DashboardSidebar({ isMobile = false, onNavigate }: DashboardSide
                                 "rounded-lg flex items-center justify-center transition-all shrink-0",
                                 collapsed ? "w-7 h-7" : "w-9 h-9",
                                 isActive
-                                  ? "bg-primary-foreground/10"
-                                  : "bg-accent/30 group-hover:bg-accent group-hover:scale-105",
+                                  ? "bg-gradient-to-br from-primary to-accent text-primary-foreground shadow-md shadow-primary/25"
+                                  : "bg-gradient-to-br from-primary/10 to-accent/20 text-primary group-hover:from-primary/20 group-hover:to-accent/30 group-hover:scale-105",
                               )}
                             >
                               <item.icon className={cn(collapsed ? "w-4 h-4" : "w-[18px] h-[18px]")} />
@@ -470,23 +478,17 @@ export function DashboardSidebar({ isMobile = false, onNavigate }: DashboardSide
                             {!collapsed && (
                               <div className="flex-1 min-w-0">
                                 <p className="font-semibold text-sm leading-none truncate">{item.name}</p>
-                                <p
-                                  className={cn(
-                                    "text-xs leading-none mt-1 truncate",
-                                    isActive ? "text-primary-foreground/70" : "text-muted-foreground",
-                                  )}
-                                >
+                                <p className="text-xs leading-none mt-1 truncate text-muted-foreground">
                                   {item.description}
                                 </p>
                               </div>
                             )}
                             {!collapsed && badgeCount !== null && badgeCount !== undefined && (
                               <Badge
-                                variant={isActive ? "secondary" : "outline"}
+                                variant="outline"
                                 className={cn(
                                   "h-6 min-w-[24px] px-2 font-bold text-xs shrink-0",
-                                  isActive &&
-                                    "bg-primary-foreground/10 text-primary-foreground border-primary-foreground/20",
+                                  isActive && "bg-primary/15 text-primary border-primary/30",
                                 )}
                               >
                                 {badgeCount}

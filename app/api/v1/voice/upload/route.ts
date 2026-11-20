@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
 
     // Validate authentication (supports both session and API key)
     const authResult = await validateDualAuth(request)
-    if (!authResult.authenticated) {
+    if (!authResult.authenticated || !authResult.userId) {
       console.error("[v0] [Voice Upload API] Authentication failed:", authResult.error)
       return NextResponse.json({ error: authResult.error }, { status: 401 })
     }

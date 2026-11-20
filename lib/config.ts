@@ -50,8 +50,8 @@ export const siteConfig: SiteConfig = {
       href: "/ecosystem",
     },
     {
-      title: "API Docs",
-      href: "/api-docs",
+      title: "Docs",
+      href: "/docs",
     },
     {
       title: "About",

@@ -39,7 +39,7 @@ export const crmContactSchema = z.object({
   last_contacted: z.string().datetime().optional().nullable(),
   status: z.string().optional().nullable(),
   tags: z.array(z.string()).optional().nullable(),
-  custom_fields: z.record(z.any()).optional().nullable(),
+  custom_fields: z.record(z.string(), z.any()).optional().nullable(),
 })
 
 export const createCrmContactSchema = crmContactSchema.omit({ id: true })
@@ -62,7 +62,7 @@ export const crmDealSchema = z.object({
   probability: z.number().min(0).max(100).optional().nullable(),
   contact_id: z.string().uuid().optional().nullable(),
   description: z.string().optional().nullable(),
-  custom_fields: z.record(z.any()).optional().nullable(),
+  custom_fields: z.record(z.string(), z.any()).optional().nullable(),
 })
 
 export const createCrmDealSchema = crmDealSchema.omit({ id: true })
@@ -88,7 +88,7 @@ export const crmActivitySchema = z.object({
   completed_date: z.string().datetime().optional().nullable(),
   contact_id: z.string().uuid().optional().nullable(),
   deal_id: z.string().uuid().optional().nullable(),
-  custom_fields: z.record(z.any()).optional().nullable(),
+  custom_fields: z.record(z.string(), z.any()).optional().nullable(),
 })
 
 export const createCrmActivitySchema = crmActivitySchema.omit({ id: true })

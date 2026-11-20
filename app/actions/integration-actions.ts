@@ -11,7 +11,7 @@ const SHOPIFY_API_VERSION = "2024-04"
 export async function initiateShopifyAuth(
   shop: string,
 ): Promise<{ success: boolean; authUrl?: string; error?: string }> {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -67,7 +67,7 @@ export async function handleShopifyCallback(code: string, shop: string): Promise
     const { access_token, scope } = await response.json()
 
     // Securely store the token and connection details
-    const supabase = createServerSupabaseClient()
+    const supabase = await createServerSupabaseClient()
     const {
       data: { user },
     } = await supabase.auth.getUser()
@@ -119,7 +119,7 @@ export async function triggerShopifyDataSync(userId: string, shop: string) {
 }
 
 async function getShopifyAccessToken(userId: string, shop: string): Promise<string | null> {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
   const { data, error } = await supabase
     .from("external_integrations")
     .select("encrypted_access_token")
@@ -142,7 +142,7 @@ export async function syncAndEmbedShopifyProducts(userId: string, shop: string) 
   const accessToken = await getShopifyAccessToken(userId, shop)
   if (!accessToken) return
 
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
   await supabase
     .from("external_integrations")
     .update({ sync_status: "syncing" })
@@ -254,7 +254,7 @@ export async function syncAndEmbedShopifyProducts(userId: string, shop: string) 
 }
 
 export async function resyncShopifyData(integrationId: string): Promise<{ success: boolean; error?: string }> {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -280,7 +280,7 @@ export async function resyncShopifyData(integrationId: string): Promise<{ succes
 }
 
 export async function disconnectIntegration(integrationId: string): Promise<{ success: boolean; error?: string }> {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()

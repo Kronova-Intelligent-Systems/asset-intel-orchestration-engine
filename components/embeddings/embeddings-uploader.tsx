@@ -19,6 +19,8 @@ import { toast } from "@/components/ui/use-toast"
 import { Upload, Loader2, FileText, File, X, Code, Database, AlertCircle } from "lucide-react"
 import type { AIModel, DatabaseConnection } from "@/lib/types/database" // Added DatabaseConnection
 import { getDatabaseConnections } from "@/app/actions/ai-actions" // Action to fetch DB connections
+import { isSupportedEmbeddingModel } from "@/lib/embeddings/supported-models"
+import { SUPPORTED_IMPORT_EXTENSIONS } from "@/lib/embeddings/import-file-types"
 
 interface EmbeddingsUploaderProps {
   userId: string
@@ -28,7 +30,21 @@ interface EmbeddingsUploaderProps {
   // No need to pass databaseConnections as prop, fetch it internally
 }
 
+function describeImport(result: {
+  storedCount: number
+  failedCount: number
+  learningLayerId?: string
+  warnings: string[]
+}) {
+  const parts = [`${result.storedCount} chunks embedded`]
+  if (result.learningLayerId) parts.push("added to the learning layer")
+  if (result.failedCount > 0) parts.push(`${result.failedCount} failed`)
+  const summary = parts.join(", ")
+  return result.warnings.length > 0 ? `${summary}. ${result.warnings.join(" ")}` : summary
+}
+
 export function EmbeddingsUploader({ userId, embeddingModels, defaultSettings, refreshData }: EmbeddingsUploaderProps) {
+  const supportedModels = (embeddingModels ?? []).filter((model) => isSupportedEmbeddingModel(model.model_id))
   const [activeTab, setActiveTab] = useState("file")
   const [isProcessing, setIsProcessing] = useState(false)
   const [files, setFiles] = useState<File[]>([])
@@ -38,10 +54,11 @@ export function EmbeddingsUploader({ userId, embeddingModels, defaultSettings, r
   const [form, setForm] = useState({
     name: "",
     description: "",
-    modelId: embeddingModels && embeddingModels.length > 0 ? embeddingModels[0].id : "",
+    modelId: supportedModels.length > 0 ? supportedModels[0].id : "",
     chunkSize: defaultSettings?.defaultChunkSize || 1000,
     chunkOverlap: defaultSettings?.defaultChunkOverlap || 200,
     textContent: "",
+    addToLearningLayer: false,
     // Database specific form fields
     selectedDbConnectionId: "",
     dbQuery: "", // Or table name, column names etc.
@@ -127,9 +144,12 @@ export function EmbeddingsUploader({ userId, embeddingModels, defaultSettings, r
       formData.append("modelId", form.modelId)
       formData.append("chunkSize", form.chunkSize.toString())
       formData.append("chunkOverlap", form.chunkOverlap.toString())
-      formData.append("userId", userId)
-      await uploadFileForEmbedding(formData)
-      toast({ title: "Files uploaded successfully", description: "Processing for embeddings started." })
+      formData.append("addToLearningLayer", String(form.addToLearningLayer))
+      const result = await uploadFileForEmbedding(formData)
+      toast({
+        title: "Import complete",
+        description: describeImport(result),
+      })
       resetCommonFormFields()
       refreshData()
     } catch (error: any) {
@@ -169,16 +189,16 @@ export function EmbeddingsUploader({ userId, embeddingModels, defaultSettings, r
     }
     setIsProcessing(true)
     try {
-      await createEmbeddingFromText({
+      const result = await createEmbeddingFromText({
         name: form.name,
         description: form.description,
         modelId: form.modelId,
         chunkSize: form.chunkSize,
         chunkOverlap: form.chunkOverlap,
         textContent: form.textContent,
-        userId,
+        addToLearningLayer: form.addToLearningLayer,
       })
-      toast({ title: "Text processed successfully", description: "Embeddings created from text." })
+      toast({ title: "Import complete", description: describeImport(result) })
       resetCommonFormFields()
       refreshData()
     } catch (error: any) {
@@ -301,7 +321,7 @@ export function EmbeddingsUploader({ userId, embeddingModels, defaultSettings, r
               <SelectValue placeholder="Select a model" />
             </SelectTrigger>
             <SelectContent>
-              {embeddingModels.map((model) => (
+              {supportedModels.map((model) => (
                 <SelectItem key={model.id} value={model.id}>
                   {model.name} ({model.provider})
                 </SelectItem>
@@ -324,14 +344,14 @@ export function EmbeddingsUploader({ userId, embeddingModels, defaultSettings, r
           <Label htmlFor={`chunkSize-${activeTab}`}>Chunk Size: {form.chunkSize}</Label>
           <Slider
             id={`chunkSize-${activeTab}`}
-            min={100}
+            min={200}
             max={4000}
             step={50}
             value={[form.chunkSize]}
             onValueChange={(value) => setForm({ ...form, chunkSize: value[0] })}
           />
           <p className="text-xs text-muted-foreground">
-            Tokens per chunk. Smaller chunks are more precise but may lose context.
+            Characters per chunk. Smaller chunks are more precise but may lose context.
           </p>
         </div>
         <div className="space-y-2">
@@ -344,9 +364,27 @@ export function EmbeddingsUploader({ userId, embeddingModels, defaultSettings, r
             value={[form.chunkOverlap]}
             onValueChange={(value) => setForm({ ...form, chunkOverlap: value[0] })}
           />
-          <p className="text-xs text-muted-foreground">Tokens to overlap between chunks to maintain context.</p>
+          <p className="text-xs text-muted-foreground">Characters shared between chunks to maintain context.</p>
         </div>
       </div>
+      {activeTab !== "database" && (
+        <div className="flex items-start gap-3 rounded-md border p-3">
+          <input
+            id={`learning-${activeTab}`}
+            type="checkbox"
+            className="mt-1 h-4 w-4 accent-primary"
+            checked={form.addToLearningLayer}
+            onChange={(e) => setForm({ ...form, addToLearningLayer: e.target.checked })}
+          />
+          <div className="space-y-1">
+            <Label htmlFor={`learning-${activeTab}`}>Also add to the learning layer</Label>
+            <p className="text-xs text-muted-foreground">
+              Saves a searchable summary of this dataset next to your agent and workflow learnings, so agents can
+              discover it. Chunk-level search stays in your embeddings.
+            </p>
+          </div>
+        </div>
+      )}
     </>
   )
 
@@ -391,12 +429,13 @@ export function EmbeddingsUploader({ userId, embeddingModels, defaultSettings, r
                     className="hidden"
                     ref={fileInputRef}
                     onChange={handleFileChange}
-                    accept=".pdf,.doc,.docx,.txt,.csv,.xlsx,.xls,.json,.md"
+                    accept={SUPPORTED_IMPORT_EXTENSIONS.join(",")}
                   />
                   <Upload className="h-10 w-10 text-muted-foreground mb-2" />
                   <p className="text-sm text-muted-foreground text-center">Click to upload or drag and drop</p>
                   <p className="text-xs text-muted-foreground text-center mt-1">
-                    PDF, DOC(X), TXT, CSV, XLS(X), JSON, MD (Max 100MB per file)
+                    PDF, TXT, MD, CSV, JSON, HTML, XML, YAML (Max 100MB per file). Export Word and Excel files as PDF
+                    or CSV first.
                   </p>
                 </div>
               </div>

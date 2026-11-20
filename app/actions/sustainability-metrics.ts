@@ -1,7 +1,6 @@
 "use server"
 
 import { createServerSupabaseClient } from "@/lib/supabase/server"
-import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 
 // Define types for our metrics
@@ -41,8 +40,7 @@ export interface SustainabilityMetrics {
 
 // Calculate ROI and sustainability metrics
 export async function getSustainabilityMetrics() {
-  const cookieStore = cookies()
-  const supabase = createServerSupabaseClient(cookieStore)
+  const supabase = await createServerSupabaseClient()
 
   try {
     const {
@@ -186,8 +184,7 @@ function generateMonthlyData(
 
 // Get carbon footprint data for a specific shipment
 export async function getShipmentCarbonFootprint(shipmentId: string) {
-  const cookieStore = cookies()
-  const supabase = createServerSupabaseClient(cookieStore)
+  const supabase = await createServerSupabaseClient()
 
   try {
     const {

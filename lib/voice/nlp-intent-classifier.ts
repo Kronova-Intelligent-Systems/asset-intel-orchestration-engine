@@ -17,6 +17,8 @@ export type IntentAction =
   | "manage_integrations"
   | "voice_settings"
   | "help"
+  | "confirm_action"
+  | "cancel_action"
   | "unknown"
 
 export interface Intent {
@@ -68,7 +70,7 @@ export class NLPIntentClassifier {
       // Limit cache size
       if (this.intentCache.size > 1000) {
         const firstKey = this.intentCache.keys().next().value
-        this.intentCache.delete(firstKey)
+        if (firstKey !== undefined) this.intentCache.delete(firstKey)
       }
     }
 
@@ -99,9 +101,14 @@ AVAILABLE ACTIONS:
 14. manage_integrations - Configure platform integrations
 15. voice_settings - Adjust voice agent settings
 16. help - Get help or information
-17. unknown - Cannot determine intent
+17. confirm_action - User agrees to the action the assistant just proposed ("yes", "go ahead", "do it", "confirm")
+18. cancel_action - User declines or abandons the action the assistant just proposed ("no", "cancel", "never mind")
+19. unknown - Cannot determine intent
 
 ENTITY TYPES:
+- purpose: For create_agent, what the new agent should do, in the user's own words (e.g. "monitor deployments and summarize failed builds")
+- model: For create_agent, a model the user asked for by name, if any
+- wallet_address: For tokenize_asset, a wallet address if the user states one
 - agent_name: Name of AI agent
 - asset_name: Name of asset
 - workflow_name: Name of workflow
@@ -136,7 +143,7 @@ Return ONLY valid JSON in this exact format:
       const result = await generateText({
         model: "openai/gpt-4o-mini",
         prompt,
-        maxTokens: 500,
+        maxOutputTokens: 500,
         temperature: 0.3,
       })
 
@@ -191,7 +198,7 @@ Format: [{"entityType": "agent_name", "value": "Asset Analyzer", "confidence": 0
       const result = await generateText({
         model: "openai/gpt-4o-mini",
         prompt,
-        maxTokens: 300,
+        maxOutputTokens: 300,
         temperature: 0.2,
       })
 

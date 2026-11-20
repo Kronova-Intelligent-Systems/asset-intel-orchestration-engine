@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
     console.error("[API] Deploy stablecoin error:", error)
 
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ success: false, error: "Validation failed", details: error.errors }, { status: 400 })
+      return NextResponse.json({ success: false, error: "Validation failed", details: error.issues }, { status: 400 })
     }
 
     return NextResponse.json({ success: false, error: "Failed to deploy stablecoin" }, { status: 500 })

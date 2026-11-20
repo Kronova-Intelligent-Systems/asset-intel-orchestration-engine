@@ -117,7 +117,7 @@ export function AetherNetOAuthMCPDashboard({
       categoryNote: "Bypasses OAuth entirely",
       items: [
         "Cryptographic Airgap — no bearer tokens",
-        "CRYSTALS-Dilithium post-quantum signing",
+        "FIPS 204 ML-DSA-65 post-quantum signing",
         "Canton Network settlement (TEEs)",
         "QUAS: legally binding M2M contracts",
         "KVS: distributed agent state & checkpoints",
@@ -329,9 +329,9 @@ export function AetherNetOAuthMCPDashboard({
                       <div className="w-7 h-7 rounded-full bg-pink-500/20 flex items-center justify-center text-pink-500 text-xs font-bold shrink-0">1</div>
                       <div>
                         <p className="text-sm font-medium mb-1">Cryptographic Airgap — No OAuth</p>
-                        <p className="text-xs text-muted-foreground">Execution mandates bypass OAuth entirely. The agent signs the mandate with a post-quantum key (CRYSTALS-Dilithium) and submits directly to the AetherNet Airgap. No bearer token is issued or accepted.</p>
+                        <p className="text-xs text-muted-foreground">Execution mandates bypass OAuth entirely. The agent signs the mandate with a post-quantum key (FIPS 204 ML-DSA-65) and submits it through the AetherNet edge gateway to the Airgap. No bearer token is issued or accepted.</p>
                         <div className="bg-muted/50 rounded-lg p-3 text-xs font-mono mt-2">
-                          <code>Mandate signed: PQ-CRYSTALS-Dilithium</code>
+                          <code>Mandate signed: ML-DSA-65 (FIPS 204)</code>
                           <div className="mt-1 text-muted-foreground">Zero OAuth surface — airgapped execution</div>
                         </div>
                       </div>
@@ -471,7 +471,7 @@ export function AetherNetOAuthMCPDashboard({
                 </Button>
 
                 <Button className="h-auto py-4 flex-col items-start gap-2 bg-transparent" variant="outline" asChild>
-                  <a href="/api-docs" target="_blank" rel="noreferrer">
+                  <a href="/docs" target="_blank" rel="noreferrer">
                     <div className="flex items-center gap-2 w-full">
                       <ExternalLink className="h-4 w-4" />
                       <span className="font-semibold">API Documentation</span>

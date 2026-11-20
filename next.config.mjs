@@ -12,6 +12,9 @@ const nextConfig = {
   // warning.
   turbopack: {},
   reactStrictMode: true,
+  // The PQC SDK loads its .wasm via `${__dirname}/...`; bundling rewrites
+  // __dirname and the file is not found, so keep it as a plain Node import.
+  serverExternalPackages: ["@kronova-intelligent-systems/aethernet-pqc-sdk"],
   experimental: {
     // Server Actions (e.g. sendSupportMessage) validate the request's Origin
     // header against this allowlist. Preview *.vercel.app URLs pass this check
@@ -20,6 +23,15 @@ const nextConfig = {
     serverActions: {
       allowedOrigins: ["app.kronova.io", "kronova.io", "*.kronova.io"],
     },
+  },
+  // /docs is the canonical documentation URL. The old paths stay alive as
+  // permanent redirects so existing links, bookmarks and #fragments keep working.
+  async redirects() {
+    return [
+      { source: "/api-docs", destination: "/docs", permanent: true },
+      { source: "/api-docs/:path*", destination: "/docs/:path*", permanent: true },
+      { source: "/documentation", destination: "/docs", permanent: true },
+    ]
   },
   async headers() {
     return [

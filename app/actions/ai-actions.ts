@@ -56,7 +56,7 @@ const updateCrmConnectionSchema = z.object({
 
 const crmAuthSchema = z.object({
   provider: z.enum(["salesforce", "crmone", "netsuite"]),
-  credentials: z.record(z.any()), // Adjust based on expected credentials
+  credentials: z.record(z.string(), z.any()), // Adjust based on expected credentials
 })
 
 // Create AI Agent
@@ -97,7 +97,7 @@ export async function createAgent(formData: z.infer<typeof createAgentSchema> & 
   } catch (error) {
     console.error("Error in createAgent:", error)
     if (error instanceof z.ZodError) {
-      return { success: false, message: error.errors[0].message }
+      return { success: false, message: error.issues[0].message }
     }
     return { success: false, error: "An unexpected error occurred" }
   }
@@ -149,7 +149,7 @@ export async function updateAgent(formData: z.infer<typeof updateAgentSchema> & 
   } catch (error) {
     console.error("Error in updateAgent:", error)
     if (error instanceof z.ZodError) {
-      return { success: false, message: error.errors[0].message }
+      return { success: false, message: error.issues[0].message }
     }
     return { success: false, error: "An unexpected error occurred" }
   }
@@ -347,7 +347,7 @@ export async function createWorkflow(formData: any) {
 
 // Update an existing workflow
 export async function updateWorkflow(formData: any) {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
 
   try {
     // Get the current user
@@ -397,7 +397,7 @@ export async function updateWorkflow(formData: any) {
 
 // Delete a workflow
 export async function deleteWorkflow(workflowId: string) {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
 
   try {
     // Get the current user
@@ -441,7 +441,7 @@ export async function deleteWorkflow(workflowId: string) {
 export async function executeWorkflow(workflowId: string, input: Record<string, any> = {}) {
   try {
     // Get the current user
-    const supabase = createServerSupabaseClient()
+    const supabase = await createServerSupabaseClient()
     const {
       data: { user },
       error: userError,
@@ -477,7 +477,7 @@ export async function executeWorkflow(workflowId: string, input: Record<string, 
 
 // Create a new CRM connection
 export async function createCrmConnection(formData: z.infer<typeof createCrmConnectionSchema>) {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
 
   try {
     // Get the current user
@@ -508,7 +508,7 @@ export async function createCrmConnection(formData: z.infer<typeof createCrmConn
   } catch (error) {
     console.error("Error in createCrmConnection:", error)
     if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors[0].message }
+      return { success: false, error: error.issues[0].message }
     }
     return { success: false, error: "An unexpected error occurred" }
   }
@@ -516,7 +516,7 @@ export async function createCrmConnection(formData: z.infer<typeof createCrmConn
 
 // Update an existing CRM connection
 export async function updateCrmConnection(formData: z.infer<typeof updateCrmConnectionSchema>) {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
 
   try {
     // Get the current user
@@ -564,7 +564,7 @@ export async function updateCrmConnection(formData: z.infer<typeof updateCrmConn
   } catch (error) {
     console.error("Error in updateCrmConnection:", error)
     if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors[0].message }
+      return { success: false, error: error.issues[0].message }
     }
     return { success: false, error: "An unexpected error occurred" }
   }
@@ -572,7 +572,7 @@ export async function updateCrmConnection(formData: z.infer<typeof updateCrmConn
 
 // Delete a CRM connection
 export async function deleteCrmConnection(connectionId: string) {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
 
   try {
     // Get the current user
@@ -614,7 +614,7 @@ export async function deleteCrmConnection(connectionId: string) {
 
 // Authenticate with a CRM provider
 export async function authenticateCrmProvider(formData: z.infer<typeof crmAuthSchema>) {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
 
   try {
     // Get the current user
@@ -677,7 +677,7 @@ export async function authenticateCrmProvider(formData: z.infer<typeof crmAuthSc
   } catch (error) {
     console.error("Error in authenticateCrmProvider:", error)
     if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors[0].message }
+      return { success: false, error: error.issues[0].message }
     }
     return { success: false, error: "An unexpected error occurred" }
   }
@@ -685,7 +685,7 @@ export async function authenticateCrmProvider(formData: z.infer<typeof crmAuthSc
 
 // Sync data from a CRM connection
 export async function syncCrmData(connectionId: string) {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
 
   try {
     // Get the current user
@@ -818,7 +818,7 @@ async function authenticateNetSuite(credentials: any) {
 }
 
 async function syncSalesforceData(connection: any) {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
 
   try {
     // In a real implementation, this would make API calls to Salesforce
@@ -912,7 +912,7 @@ async function syncSalesforceData(connection: any) {
 }
 
 async function syncCrmOneData(connection: any) {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
 
   try {
     // In a real implementation, this would make API calls to CrmOne
@@ -1006,7 +1006,7 @@ async function syncCrmOneData(connection: any) {
 }
 
 async function syncNetSuiteData(connection: any) {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
 
   try {
     // In a real implementation, this would make API calls to NetSuite
@@ -1290,7 +1290,7 @@ export async function optimizeSupplyChain({
 export async function getDatabaseConnections(): Promise<DatabaseConnection[]> {
   let supabase
   try {
-    supabase = createServerSupabaseClient()
+    supabase = await createServerSupabaseClient()
   } catch (e: any) {
     console.error("Failed to create Supabase client in getDatabaseConnections:", e.message)
     throw new Error(`Server configuration error: ${e.message}`)
@@ -1335,7 +1335,7 @@ export async function getDatabaseConnections(): Promise<DatabaseConnection[]> {
 export async function createDbConnection(
   formData: CreateDatabaseConnectionInput,
 ): Promise<{ success: boolean; data?: DatabaseConnection; error?: string }> {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -1346,7 +1346,7 @@ export async function createDbConnection(
 
   const validation = createDatabaseConnectionSchema.safeParse(formData)
   if (!validation.success) {
-    return { success: false, error: validation.error.errors.map((e) => e.message).join(", ") }
+    return { success: false, error: validation.error.issues.map((e) => e.message).join(", ") }
   }
 
   // IMPORTANT: In a real application, encrypt `password` and `connection_string` before saving.
@@ -1370,7 +1370,7 @@ export async function createDbConnection(
 export async function updateDbConnection(
   formData: UpdateDatabaseConnectionInput & { id: string },
 ): Promise<{ success: boolean; data?: DatabaseConnection; error?: string }> {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -1382,7 +1382,7 @@ export async function updateDbConnection(
   // The id is now part of formData, so we can validate it directly
   const validation = updateDatabaseConnectionSchema.safeParse(formData)
   if (!validation.success) {
-    return { success: false, error: validation.error.errors.map((e) => e.message).join(", ") }
+    return { success: false, error: validation.error.issues.map((e) => e.message).join(", ") }
   }
 
   const { id, ...updateData } = validation.data
@@ -1406,7 +1406,7 @@ export async function updateDbConnection(
 }
 
 export async function deleteDbConnection(connectionId: string): Promise<{ success: boolean; error?: string }> {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -1429,7 +1429,7 @@ export async function deleteDbConnection(connectionId: string): Promise<{ succes
 export async function testDbConnection(
   connectionId: string,
 ): Promise<{ success: boolean; message?: string; error?: string }> {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -1539,7 +1539,7 @@ export async function getDatabaseSchema(
 export async function createSupabaseProjectForUser(
   formData: CreateSupabaseProjectFormValues,
 ): Promise<{ success: boolean; data?: UserManagedSupabaseProject; error?: string; message?: string }> {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -1550,7 +1550,7 @@ export async function createSupabaseProjectForUser(
 
   const validation = createSupabaseProjectFormSchema.safeParse(formData)
   if (!validation.success) {
-    return { success: false, error: validation.error.errors.map((e) => e.message).join(", ") }
+    return { success: false, error: validation.error.issues.map((e) => e.message).join(", ") }
   }
 
   const { displayName, supabaseProjectName, region, dbPass } = validation.data
@@ -1657,7 +1657,7 @@ export async function createSupabaseProjectForUser(
 }
 
 export async function getManagedSupabaseProjectsForUser(): Promise<UserManagedSupabaseProject[]> {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -1683,7 +1683,7 @@ export async function getManagedSupabaseProjectsForUser(): Promise<UserManagedSu
 export async function addManagedDbToConnections(
   managedProjectId: string,
 ): Promise<{ success: boolean; error?: string; message?: string }> {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()

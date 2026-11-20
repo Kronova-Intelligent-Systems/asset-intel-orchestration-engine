@@ -22,10 +22,10 @@ MCP clients will discover and use these Supabase endpoints:
 
 | Endpoint | URL |
 |----------|-----|
-| **Discovery** | `https://<project-ref>.supabase.co/.well-known/oauth-authorization-server/auth/v1` |
-| **Authorization** | `https://<project-ref>.supabase.co/auth/v1/oauth/authorize` |
-| **Token** | `https://<project-ref>.supabase.co/auth/v1/oauth/token` |
-| **JWKS** | `https://<project-ref>.supabase.co/auth/v1/.well-known/jwks.json` |
+| **Discovery** | `https://api.kronova.io/.well-known/oauth-authorization-server/auth/v1` |
+| **Authorization** | `https://api.kronova.io/auth/v1/oauth/authorize` |
+| **Token** | `https://api.kronova.io/auth/v1/oauth/token` |
+| **JWKS** | `https://api.kronova.io/auth/v1/.well-known/jwks.json` |
 
 Your authorization UI is hosted at: `https://app.resendit.com/oauth/consent`
 
@@ -79,9 +79,9 @@ In your MCP server configuration, use:
 ```json
 {
   "oauth": {
-    "issuer": "https://<project-ref>.supabase.co/auth/v1",
-    "authorization_endpoint": "https://<project-ref>.supabase.co/auth/v1/oauth/authorize",
-    "token_endpoint": "https://<project-ref>.supabase.co/auth/v1/oauth/token",
+    "issuer": "https://api.kronova.io/auth/v1",
+    "authorization_endpoint": "https://api.kronova.io/auth/v1/oauth/authorize",
+    "token_endpoint": "https://api.kronova.io/auth/v1/oauth/token",
     "client_id": "YOUR_CLIENT_ID",
     "redirect_uri": "http://localhost:3000/callback",
     "scopes": ["openid", "email", "read_assets", "execute_agents"]
@@ -91,7 +91,7 @@ In your MCP server configuration, use:
 
 Most MCP clients will auto-discover these endpoints from:
 ```
-https://<project-ref>.supabase.co/.well-known/oauth-authorization-server/auth/v1
+https://api.kronova.io/.well-known/oauth-authorization-server/auth/v1
 ```
 
 ## MCP Authentication Flow
@@ -141,7 +141,7 @@ https://<project-ref>.supabase.co/.well-known/oauth-authorization-server/auth/v1
 ### 1. Test Discovery Endpoint
 
 ```bash
-curl https://<project-ref>.supabase.co/.well-known/oauth-authorization-server/auth/v1
+curl https://api.kronova.io/.well-known/oauth-authorization-server/auth/v1
 ```
 
 Should return OAuth server metadata including endpoints and supported grant types.
@@ -232,7 +232,7 @@ Configure Claude Desktop to use Resend-It as an MCP server:
       "args": ["/path/to/resendit-mcp-server/dist/index.js"],
       "env": {
         "OAUTH_CLIENT_ID": "YOUR_CLIENT_ID",
-        "OAUTH_ISSUER": "https://<project-ref>.supabase.co/auth/v1",
+        "OAUTH_ISSUER": "https://api.kronova.io/auth/v1",
         "REDIRECT_URI": "http://localhost:3000/callback"
       }
     }

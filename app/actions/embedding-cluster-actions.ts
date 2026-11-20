@@ -13,7 +13,7 @@ export async function clusterShipments({
   clusterCount?: number
   algorithm?: string
 }): Promise<ClusterResult[]> {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
 
   // Get environment variables
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL

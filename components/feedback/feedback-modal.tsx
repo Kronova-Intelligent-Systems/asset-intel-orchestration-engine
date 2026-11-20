@@ -34,7 +34,7 @@ const feedbackReportSchema = z.object({
   tags: z.array(z.string()).optional(),
   pageUrl: z.string().optional(),
   userAgent: z.string().optional(),
-  browserInfo: z.record(z.any()).optional(),
+  browserInfo: z.record(z.string(), z.any()).optional(),
 })
 
 type FeedbackReport = z.infer<typeof feedbackReportSchema>

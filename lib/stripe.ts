@@ -13,7 +13,9 @@ if (process.env.STRIPE_SECRET_KEY.startsWith("pk_")) {
   )
 }
 
+// No explicit apiVersion: the SDK pins every request to the API version its types were generated for
+// (see node_modules/stripe/VERSION), so runtime responses always match the TypeScript types.
 export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2024-06-20",
   typescript: true,
+  appInfo: { name: "kronova-asset-intel-orchestration-engine" },
 })

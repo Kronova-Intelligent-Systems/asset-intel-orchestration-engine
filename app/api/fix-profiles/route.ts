@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
   // This is an admin-only endpoint, so we should check for admin privileges
   // For now, we'll just check if the user is authenticated
   try {
-    const supabase = createServerSupabaseClient()
+    const supabase = await createServerSupabaseClient()
 
     // Get the current user
     const {

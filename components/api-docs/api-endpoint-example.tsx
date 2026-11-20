@@ -15,7 +15,7 @@ export function ApiEndpointExample() {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const curlExample = `curl -X GET "https://api.kronova.io/v1/assets" \\
+  const curlExample = `curl -X GET "https://app.kronova.io/api/v1/assets" \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "Content-Type: application/json"`
 

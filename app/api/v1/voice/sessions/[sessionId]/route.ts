@@ -21,8 +21,9 @@ async function validateAPIKey(apiKey: string) {
 }
 
 // GET /api/v1/voice/sessions/[sessionId] - Get session details
-export async function GET(request: NextRequest, { params }: { params: { sessionId: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ sessionId: string }> }) {
   try {
+    const { sessionId } = await params
     const authHeader = request.headers.get("authorization")
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return NextResponse.json({ error: "Missing authorization" }, { status: 401 })
@@ -38,7 +39,7 @@ export async function GET(request: NextRequest, { params }: { params: { sessionI
     const { data: session, error } = await supabase
       .from("voice_sessions")
       .select("*")
-      .eq("id", params.sessionId)
+      .eq("id", sessionId)
       .eq("user_id", validation.userId)
       .maybeSingle()
 
@@ -50,7 +51,7 @@ export async function GET(request: NextRequest, { params }: { params: { sessionI
     const { data: logs } = await supabase
       .from("voice_execution_logs")
       .select("*")
-      .eq("session_id", params.sessionId)
+      .eq("session_id", sessionId)
       .order("created_at", { ascending: false })
       .limit(50)
 
@@ -67,8 +68,9 @@ export async function GET(request: NextRequest, { params }: { params: { sessionI
 }
 
 // PATCH /api/v1/voice/sessions/[sessionId] - Update session
-export async function PATCH(request: NextRequest, { params }: { params: { sessionId: string } }) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ sessionId: string }> }) {
   try {
+    const { sessionId } = await params
     const authHeader = request.headers.get("authorization")
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return NextResponse.json({ error: "Missing authorization" }, { status: 401 })
@@ -94,7 +96,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { sessio
     const { data: session, error } = await supabase
       .from("voice_sessions")
       .update(updates)
-      .eq("id", params.sessionId)
+      .eq("id", sessionId)
       .eq("user_id", validation.userId)
       .select()
       .single()
@@ -114,8 +116,9 @@ export async function PATCH(request: NextRequest, { params }: { params: { sessio
 }
 
 // DELETE /api/v1/voice/sessions/[sessionId] - Delete session
-export async function DELETE(request: NextRequest, { params }: { params: { sessionId: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ sessionId: string }> }) {
   try {
+    const { sessionId } = await params
     const authHeader = request.headers.get("authorization")
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return NextResponse.json({ error: "Missing authorization" }, { status: 401 })
@@ -131,7 +134,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { sessi
     const { error } = await supabase
       .from("voice_sessions")
       .delete()
-      .eq("id", params.sessionId)
+      .eq("id", sessionId)
       .eq("user_id", validation.userId)
 
     if (error) {

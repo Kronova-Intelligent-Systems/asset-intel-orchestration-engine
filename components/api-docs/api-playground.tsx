@@ -545,7 +545,7 @@ export function APIPlayground() {
       }
     })
 
-    const url = `https://api.kronova.io/v1${path}${queryParams.toString() ? "?" + queryParams.toString() : ""}`
+    const url = `https://app.kronova.io/api/v1${path}${queryParams.toString() ? "?" + queryParams.toString() : ""}`
 
     let curl = `curl -X ${state.selectedEndpoint.method} "${url}" \\
   -H "Authorization: Bearer YOUR_API_KEY" \\

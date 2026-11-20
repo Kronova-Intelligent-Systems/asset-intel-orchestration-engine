@@ -170,8 +170,8 @@ export async function cleanupOldVoiceAudio(userId: string): Promise<number> {
     const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
     const oldFiles = (files || [])
       .filter((file) => {
-        const createdAt = new Date(file.created_at).getTime()
-        return createdAt < sevenDaysAgo
+        if (!file.created_at) return false
+        return new Date(file.created_at).getTime() < sevenDaysAgo
       })
       .map((file) => `${userId}/${file.name}`)
 

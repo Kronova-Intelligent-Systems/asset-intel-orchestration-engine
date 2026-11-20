@@ -81,12 +81,20 @@ export class ResendItVoiceClient {
 
       const result = await response.json()
 
+      const words: Array<{ text: string; start: number; end: number; type?: string; logprob?: number }> =
+        Array.isArray(result.words) ? result.words.filter((word: { type?: string }) => word.type === "word") : []
+
       return {
         text: result.text,
-        confidence: result.confidence || 1.0,
-        language: result.language || language || "en",
-        duration: result.duration || 0,
-        segments: result.segments || [],
+        confidence: result.language_probability ?? 1.0,
+        language: result.language_code || language || "en",
+        duration: result.audio_duration_secs ?? words.at(-1)?.end ?? 0,
+        segments: words.map((word) => ({
+          text: word.text,
+          start: word.start,
+          end: word.end,
+          confidence: typeof word.logprob === "number" ? Math.exp(word.logprob) : 1,
+        })),
       }
     } catch (error) {
       console.error("[ResendItVoiceClient] Transcription error:", error)
@@ -98,12 +106,12 @@ export class ResendItVoiceClient {
     try {
       const audioStream = await this.client.textToSpeech.convert(config.voiceId, {
         text,
-        model_id: config.modelId || "eleven_multilingual_v2",
-        voice_settings: {
+        modelId: config.modelId || "eleven_multilingual_v2",
+        voiceSettings: {
           stability: config.stability ?? 0.5,
-          similarity_boost: config.similarityBoost ?? 0.75,
+          similarityBoost: config.similarityBoost ?? 0.75,
           style: config.style ?? 0.0,
-          use_speaker_boost: config.useSpeakerBoost ?? true,
+          useSpeakerBoost: config.useSpeakerBoost ?? true,
         },
       })
 
@@ -143,8 +151,8 @@ export class ResendItVoiceClient {
       const voicesResponse = await this.client.voices.search()
 
       return voicesResponse.voices.map((voice) => ({
-        voice_id: voice.voice_id,
-        name: voice.name,
+        voice_id: voice.voiceId,
+        name: voice.name ?? voice.voiceId,
         category: voice.category || "generated",
       }))
     } catch (error) {
@@ -155,12 +163,12 @@ export class ResendItVoiceClient {
 
   async *streamSpeech(text: string, config: ResendItVoiceConfig): AsyncGenerator<ArrayBuffer> {
     try {
-      const audioStream = await this.client.textToSpeech.convertAsStream(config.voiceId, {
+      const audioStream = await this.client.textToSpeech.stream(config.voiceId, {
         text,
-        model_id: config.modelId || "eleven_flash_v2_5", // Use faster model for streaming
-        voice_settings: {
+        modelId: config.modelId || "eleven_flash_v2_5", // Use faster model for streaming
+        voiceSettings: {
           stability: config.stability ?? 0.5,
-          similarity_boost: config.similarityBoost ?? 0.75,
+          similarityBoost: config.similarityBoost ?? 0.75,
         },
       })
 
@@ -169,7 +177,7 @@ export class ResendItVoiceClient {
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
-        yield value.buffer
+        yield value.slice().buffer
       }
     } catch (error) {
       console.error("[ResendItVoiceClient] Streaming error:", error)

@@ -3,7 +3,7 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 
 export async function debugProfile(userId: string) {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
 
   try {
     // Get profile data

@@ -13,6 +13,7 @@ import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useToast } from "@/components/ui/use-toast"
 import { ArrowRight, Lock, Mail, Github, Apple } from "lucide-react"
 import { signInWithOAuth } from "../actions/auth"
+import { APPLE_SIGN_IN_ENABLED } from "@/lib/auth-providers"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -260,11 +261,12 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className={APPLE_SIGN_IN_ENABLED ? "grid grid-cols-3 gap-3" : "grid grid-cols-2 gap-3"}>
               <Button
                 type="button"
                 variant="outline"
                 disabled={isLoading}
+                aria-label="Continue with Google"
                 onClick={() => handleOAuthSignIn("google")}
                 className="bg-background/50 border-border/50 hover:bg-primary/10 hover:border-primary/30 transition-all"
               >
@@ -292,21 +294,25 @@ export default function LoginPage() {
                 type="button"
                 variant="outline"
                 disabled={isLoading}
+                aria-label="Continue with GitHub"
                 onClick={() => handleOAuthSignIn("github")}
                 className="bg-background/50 border-border/50 hover:bg-primary/10 hover:border-primary/30 transition-all"
               >
                 <Github className="h-5 w-5" />
               </Button>
 
-              <Button
-                type="button"
-                variant="outline"
-                disabled={isLoading}
-                onClick={() => handleOAuthSignIn("apple")}
-                className="bg-background/50 border-border/50 hover:bg-primary/10 hover:border-primary/30 transition-all"
-              >
-                <Apple className="h-5 w-5" />
-              </Button>
+              {APPLE_SIGN_IN_ENABLED && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={isLoading}
+                  aria-label="Continue with Apple"
+                  onClick={() => handleOAuthSignIn("apple")}
+                  className="bg-background/50 border-border/50 hover:bg-primary/10 hover:border-primary/30 transition-all"
+                >
+                  <Apple className="h-5 w-5" />
+                </Button>
+              )}
             </div>
 
             <div className="mt-8 text-center">

@@ -1,18 +1,31 @@
 /**
  * Kronova A2A Protocol API Endpoint
  * Implements the Agent2Agent (A2A) Protocol for agent interoperability
- * 
- * This endpoint handles:
- * - Agent Card discovery (GET /.well-known/agent.json)
- * - Message sending (POST /a2a/message/send)
- * - Task management (GET/POST /a2a/tasks/*)
- * 
+ *
+ * Served at /api/a2a on the app origin (not on the Supabase custom domain).
+ *
+ * GET  ?action=discover | list-cards | list-tasks, ?agentId=..., ?taskId=...
+ * POST { action: "message/send" | "tasks/get" | "tasks/list" | "tasks/cancel" |
+ *        "tasks/updateStatus" | "tasks/addArtifact" | "agentCard/create" | "aethernet/send", ... }
+ *
+ * POST also accepts JSON-RPC 2.0 (single or batch) with A2A methods: message/send, tasks/get,
+ * tasks/list, tasks/cancel and their v1.0 names (SendMessage, GetTask, ListTasks, CancelTask).
+ * Streaming: message/stream and tasks/resubscribe reply with Server-Sent Events.
+ * Push notifications: tasks/pushNotificationConfig/{set,get,list,delete}, or a
+ * pushNotificationConfig in message/send configuration. Webhooks must be public https URLs.
+ *
+ * Authentication: Supabase session cookie or `Authorization: Bearer <api key>`.
+ * API keys need `read:agents` for GET and `write:agents` for POST. Public Agent Card
+ * discovery (`?action=discover`) requires no authentication.
+ *
  * Reference: https://a2a-protocol.org/latest/specification/
  */
 
 import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
-import { 
+import { createAdminSupabaseClient } from "@/lib/supabase/admin"
+import { validateAPIAuth } from "@/lib/auth/api-auth"
+import {
   createKronovaA2AClient,
   type SendMessageRequest,
   type GetTaskRequest,
@@ -21,12 +34,44 @@ import {
   A2AError,
   TaskNotFoundError,
 } from "@/lib/a2a/kronova-a2a-client"
+import {
+  handleJsonRpcPayload,
+  jsonRpcErrorResponse,
+  unsupportedVersionResponse,
+  JSON_RPC_ERROR,
+} from "@/lib/a2a/jsonrpc"
+
+// Event streams and push deliveries run inside this window; see STREAM_DEADLINE_MS
+export const maxDuration = 300
 
 const PROTOCOL_VERSION = "1.0"
 const SUPPORTED_VERSIONS = ["0.3", "1.0"]
 
+function versionError(request: NextRequest) {
+  const requestedVersion = request.headers.get("A2A-Version")
+  if (requestedVersion && !SUPPORTED_VERSIONS.includes(requestedVersion)) {
+    return NextResponse.json(
+      {
+        error: "VersionNotSupportedError",
+        message: `Version ${requestedVersion} not supported. Supported: ${SUPPORTED_VERSIONS.join(", ")}`,
+      },
+      { status: 400 },
+    )
+  }
+  return null
+}
+
 /**
- * Handle GET requests - Agent Card discovery
+ * API-key callers have no session, so row-level security cannot identify them.
+ * They use the service-role client; every query in the A2A client is scoped to
+ * the key owner's user id.
+ */
+async function getDataClient(authMethod: "session" | "api_key") {
+  return authMethod === "api_key" ? createAdminSupabaseClient() : await createServerSupabaseClient()
+}
+
+/**
+ * Handle GET requests - Agent Card discovery, cards, and tasks
  */
 export async function GET(request: NextRequest) {
   try {
@@ -34,24 +79,20 @@ export async function GET(request: NextRequest) {
     const agentId = searchParams.get("agentId")
     const action = searchParams.get("action")
 
-    const supabase = await createServerSupabaseClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const versionFailure = versionError(request)
+    if (versionFailure) return versionFailure
 
-    // Check A2A-Version header
-    const requestedVersion = request.headers.get("A2A-Version")
-    if (requestedVersion && !SUPPORTED_VERSIONS.includes(requestedVersion)) {
-      return NextResponse.json(
-        { 
-          error: "VersionNotSupportedError", 
-          message: `Version ${requestedVersion} not supported. Supported: ${SUPPORTED_VERSIONS.join(", ")}` 
-        },
-        { status: 400 }
-      )
+    const auth = action === "discover" ? null : await validateAPIAuth(request, ["read:agents"])
+
+    // A rejected credential is an error; having no credential falls through to public discovery
+    if (auth && !auth.authenticated && request.headers.get("authorization")) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status || 401 })
     }
 
     // Agent Card discovery (public endpoint)
-    if (action === "discover" || !user) {
-      const { data: publicCards, error } = await supabase
+    if (!auth || !auth.authenticated || !auth.userId) {
+      const publicSupabase = await createServerSupabaseClient()
+      const { data: publicCards, error } = await publicSupabase
         .from("a2a_agent_cards")
         .select("*")
         .eq("is_public", true)
@@ -61,7 +102,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: error.message }, { status: 500 })
       }
 
-      const cards = (publicCards || []).map(card => ({
+      const cards = (publicCards || []).map((card) => ({
         agentId: card.agent_id,
         name: card.name,
         description: card.description,
@@ -75,20 +116,18 @@ export async function GET(request: NextRequest) {
         documentationUrl: card.documentation_url,
       }))
 
-      return NextResponse.json({ 
+      return NextResponse.json({
         agents: cards,
         protocolVersion: PROTOCOL_VERSION,
       })
     }
 
-    // Authenticated endpoints
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
+    const supabase = await getDataClient(auth.authMethod)
+    const userId = auth.userId
 
     const client = createKronovaA2AClient({
       supabase,
-      userId: user.id,
+      userId,
     })
 
     // Get specific agent card
@@ -102,10 +141,7 @@ export async function GET(request: NextRequest) {
 
     // List user's agent cards
     if (action === "list-cards") {
-      const { data: cards, error } = await supabase
-        .from("a2a_agent_cards")
-        .select("*")
-        .eq("user_id", user.id)
+      const { data: cards, error } = await supabase.from("a2a_agent_cards").select("*").eq("user_id", userId)
 
       if (error) {
         return NextResponse.json({ error: error.message }, { status: 500 })
@@ -129,10 +165,12 @@ export async function GET(request: NextRequest) {
     if (action === "list-tasks") {
       const listRequest: ListTasksRequest = {
         contextId: searchParams.get("contextId") || undefined,
-        status: searchParams.get("status") as any || undefined,
+        status: (searchParams.get("status") as ListTasksRequest["status"]) || undefined,
         pageSize: searchParams.get("pageSize") ? parseInt(searchParams.get("pageSize")!, 10) : undefined,
         pageToken: searchParams.get("pageToken") || undefined,
-        historyLength: searchParams.get("historyLength") ? parseInt(searchParams.get("historyLength")!, 10) : undefined,
+        historyLength: searchParams.get("historyLength")
+          ? parseInt(searchParams.get("historyLength")!, 10)
+          : undefined,
         includeArtifacts: searchParams.get("includeArtifacts") === "true",
       }
 
@@ -140,10 +178,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(response)
     }
 
-    return NextResponse.json({ 
-      error: "Invalid request. Use ?action=discover, ?action=list-cards, ?action=list-tasks, ?agentId=..., or ?taskId=..." 
-    }, { status: 400 })
-
+    return NextResponse.json(
+      {
+        error:
+          "Invalid request. Use ?action=discover, ?action=list-cards, ?action=list-tasks, ?agentId=..., or ?taskId=...",
+      },
+      { status: 400 },
+    )
   } catch (error) {
     console.error("[A2A API] GET error:", error)
     if (error instanceof TaskNotFoundError) {
@@ -161,31 +202,56 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient()
-    const { data: { user } } = await supabase.auth.getUser()
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    let parsedBody: unknown
+    let bodyParsed = true
+    try {
+      parsedBody = JSON.parse(await request.text())
+    } catch {
+      bodyParsed = false
     }
 
-    // Check A2A-Version header
-    const requestedVersion = request.headers.get("A2A-Version")
-    if (requestedVersion && !SUPPORTED_VERSIONS.includes(requestedVersion)) {
-      return NextResponse.json(
-        { 
-          error: "VersionNotSupportedError", 
-          message: `Version ${requestedVersion} not supported. Supported: ${SUPPORTED_VERSIONS.join(", ")}` 
-        },
-        { status: 400 }
-      )
+    // JSON-RPC 2.0 binding: a single request object or a batch array carrying `jsonrpc`
+    const isJsonRpc =
+      bodyParsed &&
+      (Array.isArray(parsedBody) ||
+        (typeof parsedBody === "object" && parsedBody !== null && "jsonrpc" in parsedBody))
+
+    if (isJsonRpc) {
+      const requestedVersion = request.headers.get("A2A-Version")
+      if (requestedVersion && !SUPPORTED_VERSIONS.includes(requestedVersion)) {
+        return unsupportedVersionResponse(requestedVersion, SUPPORTED_VERSIONS)
+      }
+
+      return await handleJsonRpcPayload(parsedBody, {
+        signal: request.signal,
+        authorize: (scope) => validateAPIAuth(request, [scope]),
+        createClient: async (rpcAuth) =>
+          createKronovaA2AClient({
+            supabase: await getDataClient(rpcAuth.authMethod ?? "session"),
+            userId: rpcAuth.userId!,
+          }),
+      })
     }
 
-    const body = await request.json()
+    const auth = await validateAPIAuth(request, ["write:agents"])
+
+    if (!auth.authenticated || !auth.userId) {
+      return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: auth.status || 401 })
+    }
+
+    if (!bodyParsed) {
+      return jsonRpcErrorResponse(JSON_RPC_ERROR.PARSE_ERROR, "Request body is not valid JSON", 400)
+    }
+
+    const versionFailure = versionError(request)
+    if (versionFailure) return versionFailure
+
+    const body = (parsedBody ?? {}) as Record<string, any>
     const { action, ...params } = body
 
     const client = createKronovaA2AClient({
-      supabase,
-      userId: user.id,
+      supabase: await getDataClient(auth.authMethod),
+      userId: auth.userId,
     })
 
     switch (action) {
@@ -243,11 +309,13 @@ export async function POST(request: NextRequest) {
       }
 
       default:
-        return NextResponse.json({ 
-          error: `Unknown action: ${action}. Valid actions: message/send, tasks/get, tasks/list, tasks/cancel, tasks/updateStatus, tasks/addArtifact, agentCard/create, aethernet/send` 
-        }, { status: 400 })
+        return NextResponse.json(
+          {
+            error: `Unknown action: ${action}. Valid actions: message/send, tasks/get, tasks/list, tasks/cancel, tasks/updateStatus, tasks/addArtifact, agentCard/create, aethernet/send`,
+          },
+          { status: 400 },
+        )
     }
-
   } catch (error) {
     console.error("[A2A API] POST error:", error)
     if (error instanceof TaskNotFoundError) {

@@ -6,9 +6,7 @@ if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error("STRIPE_SECRET_KEY is not set in environment variables.")
 }
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2024-06-20",
-})
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 
 const supabase = createAdminSupabaseClient()
 
@@ -47,7 +45,8 @@ async function seedProducts() {
       const stripeProduct = await stripe.products.create({
         name: plan.name,
         description: plan.description,
-        metadata: plan.metadata,
+        // Stripe metadata values must be strings
+        metadata: Object.fromEntries(Object.entries(plan.metadata).map(([key, value]) => [key, String(value)])),
       })
       console.log(`Created Stripe product: ${stripeProduct.name} (${stripeProduct.id})`)
 

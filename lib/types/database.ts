@@ -1,5 +1,32 @@
 import type { Database as DB } from "@/lib/supabase/database.types"
 
+export type {
+  CreateDatabaseConnection as CreateDatabaseConnectionInput,
+  UpdateDatabaseConnection as UpdateDatabaseConnectionInput,
+} from "@/lib/schemas/data-sources"
+
+export interface DatabaseConnection {
+  id: string
+  user_id: string
+  name: string
+  description: string | null
+  connection_type: "postgresql" | "mysql" | "sqlserver" | "bigquery" | "snowflake"
+  host: string | null
+  port: number | null
+  database_name: string | null
+  username: string | null
+  password: string | null
+  connection_string: string | null
+  ssl_mode: string | null
+  additional_params: Record<string, any> | null
+  is_active: boolean
+  last_tested_at: string | null
+  last_test_status: string | null
+  last_test_error: string | null
+  created_at: string
+  updated_at: string
+}
+
 export interface AIModel {
   id: string
   name: string

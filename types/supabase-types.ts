@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "13.0.5"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       _sqlx_migrations: {
@@ -1715,7 +1690,7 @@ export type Database = {
       api_key_audit_log: {
         Row: {
           action: string
-          api_key_id: string
+          api_key_id: string | null
           created_at: string | null
           id: string
           ip_address: string | null
@@ -1725,7 +1700,7 @@ export type Database = {
         }
         Insert: {
           action: string
-          api_key_id: string
+          api_key_id?: string | null
           created_at?: string | null
           id?: string
           ip_address?: string | null
@@ -1735,7 +1710,7 @@ export type Database = {
         }
         Update: {
           action?: string
-          api_key_id?: string
+          api_key_id?: string | null
           created_at?: string | null
           id?: string
           ip_address?: string | null
@@ -3497,6 +3472,51 @@ export type Database = {
           },
         ]
       }
+      data_stores: {
+        Row: {
+          contains_personal_data: boolean
+          created_at: string
+          data_classification: string
+          id: string
+          jurisdiction: string
+          last_verified_at: string
+          name: string
+          provider: string | null
+          region: string | null
+          store_type: string
+          transfer_mechanism: string | null
+          user_id: string
+        }
+        Insert: {
+          contains_personal_data?: boolean
+          created_at?: string
+          data_classification: string
+          id?: string
+          jurisdiction: string
+          last_verified_at?: string
+          name: string
+          provider?: string | null
+          region?: string | null
+          store_type?: string
+          transfer_mechanism?: string | null
+          user_id: string
+        }
+        Update: {
+          contains_personal_data?: boolean
+          created_at?: string
+          data_classification?: string
+          id?: string
+          jurisdiction?: string
+          last_verified_at?: string
+          name?: string
+          provider?: string | null
+          region?: string | null
+          store_type?: string
+          transfer_mechanism?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       database_connections: {
         Row: {
           additional_params: Json | null
@@ -3653,6 +3673,101 @@ export type Database = {
           updated_at?: string | null
           user_agent?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      deployment_jobs: {
+        Row: {
+          claimed_at: string | null
+          created_at: string
+          error: string | null
+          finished_at: string | null
+          id: string
+          manifest: Json
+          model_ids: string[]
+          result: Json | null
+          security_profile: string
+          status: string
+          target_id: string
+          user_id: string
+        }
+        Insert: {
+          claimed_at?: string | null
+          created_at?: string
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          manifest: Json
+          model_ids: string[]
+          result?: Json | null
+          security_profile: string
+          status?: string
+          target_id: string
+          user_id: string
+        }
+        Update: {
+          claimed_at?: string | null
+          created_at?: string
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          manifest?: Json
+          model_ids?: string[]
+          result?: Json | null
+          security_profile?: string
+          status?: string
+          target_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deployment_jobs_target_id_fkey"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "deployment_targets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deployment_targets: {
+        Row: {
+          capabilities: Json
+          created_at: string
+          id: string
+          last_seen_at: string | null
+          name: string
+          runner_version: string | null
+          security_profile: string
+          status: string
+          target_type: string
+          token_hash: string
+          user_id: string
+        }
+        Insert: {
+          capabilities?: Json
+          created_at?: string
+          id?: string
+          last_seen_at?: string | null
+          name: string
+          runner_version?: string | null
+          security_profile?: string
+          status?: string
+          target_type: string
+          token_hash: string
+          user_id: string
+        }
+        Update: {
+          capabilities?: Json
+          created_at?: string
+          id?: string
+          last_seen_at?: string | null
+          name?: string
+          runner_version?: string | null
+          security_profile?: string
+          status?: string
+          target_type?: string
+          token_hash?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -6148,6 +6263,39 @@ export type Database = {
         }
         Relationships: []
       }
+      pqc_public_keys: {
+        Row: {
+          algorithm: string
+          created_at: string
+          id: string
+          key_id: string
+          label: string | null
+          public_key: string
+          revoked_at: string | null
+          user_id: string
+        }
+        Insert: {
+          algorithm?: string
+          created_at?: string
+          id?: string
+          key_id: string
+          label?: string | null
+          public_key: string
+          revoked_at?: string | null
+          user_id: string
+        }
+        Update: {
+          algorithm?: string
+          created_at?: string
+          id?: string
+          key_id?: string
+          label?: string | null
+          public_key?: string
+          revoked_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       prices: {
         Row: {
           active: boolean | null
@@ -6665,9 +6813,9 @@ export type Database = {
       }
       roi_calculations: {
         Row: {
-          avg_process_time_hours: number
-          avg_salary: number
-          company_size: string
+          avg_process_time_hours: number | null
+          avg_salary: number | null
+          company_size: string | null
           competitive_pressure: string | null
           compliance_requirements: boolean | null
           created_at: string | null
@@ -6675,19 +6823,26 @@ export type Database = {
           current_automation_level: string | null
           current_customer_satisfaction: number | null
           current_monthly_ai_spend: number | null
+          custom_metadata: Json | null
           data_preparation_costs: number | null
           data_quality_score: number | null
-          employees: number
+          employees: number | null
           error_rate_percentage: number | null
+          financial_parameters: Json | null
           id: string
-          industry: string
+          industry: string | null
+          infrastructure_data: Json | null
           innovation_priority: string | null
           integration_complexity: string | null
           maintenance_costs: number | null
-          process_frequency_per_month: number
-          processes_to_automate: number
+          operations_metrics: Json | null
+          organization_profile: Json | null
+          process_frequency_per_month: number | null
+          processes_to_automate: number | null
           results: Json
-          selected_plan_id: string
+          selected_plan: string | null
+          selected_plan_id: string | null
+          strategic_factors: Json | null
           target_customer_satisfaction: number | null
           team_ai_readiness: string | null
           time_to_market_days: number | null
@@ -6696,9 +6851,9 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
-          avg_process_time_hours: number
-          avg_salary: number
-          company_size: string
+          avg_process_time_hours?: number | null
+          avg_salary?: number | null
+          company_size?: string | null
           competitive_pressure?: string | null
           compliance_requirements?: boolean | null
           created_at?: string | null
@@ -6706,19 +6861,26 @@ export type Database = {
           current_automation_level?: string | null
           current_customer_satisfaction?: number | null
           current_monthly_ai_spend?: number | null
+          custom_metadata?: Json | null
           data_preparation_costs?: number | null
           data_quality_score?: number | null
-          employees: number
+          employees?: number | null
           error_rate_percentage?: number | null
+          financial_parameters?: Json | null
           id?: string
-          industry: string
+          industry?: string | null
+          infrastructure_data?: Json | null
           innovation_priority?: string | null
           integration_complexity?: string | null
           maintenance_costs?: number | null
-          process_frequency_per_month: number
-          processes_to_automate: number
+          operations_metrics?: Json | null
+          organization_profile?: Json | null
+          process_frequency_per_month?: number | null
+          processes_to_automate?: number | null
           results: Json
-          selected_plan_id: string
+          selected_plan?: string | null
+          selected_plan_id?: string | null
+          strategic_factors?: Json | null
           target_customer_satisfaction?: number | null
           team_ai_readiness?: string | null
           time_to_market_days?: number | null
@@ -6727,9 +6889,9 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
-          avg_process_time_hours?: number
-          avg_salary?: number
-          company_size?: string
+          avg_process_time_hours?: number | null
+          avg_salary?: number | null
+          company_size?: string | null
           competitive_pressure?: string | null
           compliance_requirements?: boolean | null
           created_at?: string | null
@@ -6737,19 +6899,26 @@ export type Database = {
           current_automation_level?: string | null
           current_customer_satisfaction?: number | null
           current_monthly_ai_spend?: number | null
+          custom_metadata?: Json | null
           data_preparation_costs?: number | null
           data_quality_score?: number | null
-          employees?: number
+          employees?: number | null
           error_rate_percentage?: number | null
+          financial_parameters?: Json | null
           id?: string
-          industry?: string
+          industry?: string | null
+          infrastructure_data?: Json | null
           innovation_priority?: string | null
           integration_complexity?: string | null
           maintenance_costs?: number | null
-          process_frequency_per_month?: number
-          processes_to_automate?: number
+          operations_metrics?: Json | null
+          organization_profile?: Json | null
+          process_frequency_per_month?: number | null
+          processes_to_automate?: number | null
           results?: Json
-          selected_plan_id?: string
+          selected_plan?: string | null
+          selected_plan_id?: string | null
+          strategic_factors?: Json | null
           target_customer_satisfaction?: number | null
           team_ai_readiness?: string | null
           time_to_market_days?: number | null
@@ -9363,6 +9532,48 @@ export type Database = {
         }
         Relationships: []
       }
+      public_profile_cards: {
+        Row: {
+          avatar_url: string | null
+          card_style: Json | null
+          company: string | null
+          company_logo_url: string | null
+          email: string | null
+          full_name: string | null
+          job_title: string | null
+          linkedin_url: string | null
+          public_id: string | null
+          website: string | null
+          xhandle: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          card_style?: Json | null
+          company?: string | null
+          company_logo_url?: string | null
+          email?: string | null
+          full_name?: string | null
+          job_title?: string | null
+          linkedin_url?: string | null
+          public_id?: string | null
+          website?: string | null
+          xhandle?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          card_style?: Json | null
+          company?: string | null
+          company_logo_url?: string | null
+          email?: string | null
+          full_name?: string | null
+          job_title?: string | null
+          linkedin_url?: string | null
+          public_id?: string | null
+          website?: string | null
+          xhandle?: string | null
+        }
+        Relationships: []
+      }
       shipping_analytics: {
         Row: {
           avg_actual_delivery_days: number | null
@@ -9437,6 +9648,14 @@ export type Database = {
       }
     }
     Functions: {
+      adjust_stablecoin_supply: {
+        Args: { p_delta: number; p_stablecoin_id: string }
+        Returns: string
+      }
+      adjust_stablecoin_supply_as: {
+        Args: { p_delta: number; p_stablecoin_id: string; p_user_id: string }
+        Returns: string
+      }
       cleanup_expired_oauth_tokens: { Args: never; Returns: undefined }
       complete_job: {
         Args: { job_id: string; job_result?: Json }
@@ -9844,6 +10063,15 @@ export type Database = {
       }
       validate_api_key:
         | {
+            Args: { api_key: string }
+            Returns: {
+              api_key_id: string
+              scopes: Json
+              user_id: string
+              valid: boolean
+            }[]
+          }
+        | {
             Args: {
               p_expected_user_id?: string
               p_key_hash: string
@@ -9940,12 +10168,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -9969,11 +10197,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -9994,11 +10222,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -10019,11 +10247,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -10036,11 +10264,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -10050,9 +10278,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       ai_platform_category: [

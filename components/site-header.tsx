@@ -19,6 +19,7 @@ export async function SiteHeader() {
     }
   } catch (error) {
     console.error("[v0] SiteHeader: Failed to create Supabase client:", error)
+  }
 
   const mainNavItems = [
     { title: "About", href: "/about" },

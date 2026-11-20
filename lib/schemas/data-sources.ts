@@ -14,7 +14,7 @@ const baseDatabaseConnectionSchema = z.object({
   password: z.string().optional().nullable(),
   connection_string: z.string().optional().nullable(),
   ssl_mode: z.string().optional().nullable(),
-  additional_params: z.record(z.any()).optional().nullable(),
+  additional_params: z.record(z.string(), z.any()).optional().nullable(),
   is_active: z.boolean().default(true),
 })
 

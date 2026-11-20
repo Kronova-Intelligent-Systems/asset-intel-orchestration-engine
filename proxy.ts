@@ -36,7 +36,8 @@ const ROUTE_MATCHERS = {
     "/forgot-password",
     "/reset-password",
     "/about",
-    "/api-docs",
+    "/platform",
+    "/docs",
     "/demo",
     "/track/",
     "/auth/",
@@ -45,6 +46,8 @@ const ROUTE_MATCHERS = {
   // Static assets
   static: /\.(ico|png|jpg|jpeg|svg|css|js|woff|woff2|ttf|eot|webp|gif)$/,
 }
+
+const A2A_AGENT_CARD_PATHS = ["/.well-known/agent.json", "/.well-known/agent-card.json"]
 
 /**
  * Check if route matches any pattern in a list
@@ -105,7 +108,7 @@ async function handleMCPDiscovery(request: NextRequest): Promise<NextResponse | 
           "mcp:execute",
         ],
         ui_locales_supported: ["en"],
-        service_documentation: `${baseUrl}/api-docs`,
+        service_documentation: `${baseUrl}/docs`,
       },
       {
         headers: {
@@ -215,6 +218,9 @@ export default async function proxy(request: NextRequest) {
   // Handle MCP discovery endpoints directly
   const mcpDiscoveryResponse = await handleMCPDiscovery(request)
   if (mcpDiscoveryResponse) return mcpDiscoveryResponse
+
+  // A2A Agent Card is public discovery metadata served by its own route handler
+  if (A2A_AGENT_CARD_PATHS.includes(pathname)) return NextResponse.next()
 
   // Check if it's a public route
   const isPublicRoute = matchesRoute(pathname, ROUTE_MATCHERS.public) || ROUTE_MATCHERS.static.test(pathname)

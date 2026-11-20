@@ -71,7 +71,7 @@ export function OAuthSettingsClient({ oauthClients, userId }: OAuthSettingsClien
   }
 
   const downloadDocs = () => {
-    window.open("/docs/oauth-integration-guide.md", "_blank")
+    window.open("/docs#oauth", "_blank")
   }
 
   const handleCreateClient = async () => {

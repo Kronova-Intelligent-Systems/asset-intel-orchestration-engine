@@ -2,7 +2,6 @@
 
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
-import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import {
   packagingOrderSchema,
@@ -18,8 +17,7 @@ const resend = new Resend(process.env.RESEND_API_KEY)
 
 // Create a new packaging order
 export async function createPackagingOrder(orderData: any) {
-  const cookieStore = cookies()
-  const supabase = createServerSupabaseClient(cookieStore)
+  const supabase = await createServerSupabaseClient()
 
   try {
     const {
@@ -217,8 +215,7 @@ function calculateCO2Savings(orderData: any) {
 
 // Get all packaging orders for the current user
 export async function getUserPackagingOrders() {
-  const cookieStore = cookies()
-  const supabase = createServerSupabaseClient(cookieStore)
+  const supabase = await createServerSupabaseClient()
 
   try {
     const {
@@ -250,8 +247,7 @@ export async function getUserPackagingOrders() {
 
 // Get a specific packaging order by ID
 export async function getPackagingOrderById(orderId: string) {
-  const cookieStore = cookies()
-  const supabase = createServerSupabaseClient(cookieStore)
+  const supabase = await createServerSupabaseClient()
 
   try {
     const {
@@ -284,8 +280,7 @@ export async function getPackagingOrderById(orderId: string) {
 
 // Update a packaging order
 export async function updatePackagingOrder(orderId: string, updates: any) {
-  const cookieStore = cookies()
-  const supabase = createServerSupabaseClient(cookieStore)
+  const supabase = await createServerSupabaseClient()
 
   try {
     const {
@@ -351,8 +346,7 @@ export async function updatePackagingOrder(orderId: string, updates: any) {
 
 // Cancel a packaging order
 export async function cancelPackagingOrder(orderId: string) {
-  const cookieStore = cookies()
-  const supabase = createServerSupabaseClient(cookieStore)
+  const supabase = await createServerSupabaseClient()
 
   try {
     const {
@@ -391,8 +385,7 @@ export async function cancelPackagingOrder(orderId: string) {
 
 // Confirm a packaging order (for admin use)
 export async function confirmPackagingOrder(orderId: string) {
-  const cookieStore = cookies()
-  const supabase = createServerSupabaseClient(cookieStore)
+  const supabase = await createServerSupabaseClient()
 
   try {
     // This should be protected by admin authentication in a real app
@@ -432,8 +425,7 @@ export async function confirmPackagingOrder(orderId: string) {
 
 // Get packaging analytics for the current user
 export async function getUserPackagingAnalytics() {
-  const cookieStore = cookies()
-  const supabase = createServerSupabaseClient(cookieStore)
+  const supabase = await createServerSupabaseClient()
 
   try {
     const {
